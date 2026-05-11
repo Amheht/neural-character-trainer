@@ -1,1065 +1,1952 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Neural Character Trainer</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#070711;--bg2:#0e0e1c;--bg3:#141428;--bg4:#1a1a35;
-  --border:#252540;--border2:#323258;
-  --accent:#7c6aff;--accent2:#00e5b0;--accent3:#ff5f87;
-  --text:#c8c8e8;--text2:#7878a8;--text3:#454568;
-  --node-h:#4a3aee;--node-o:#00b87a;
-  --pos:#2ecc71;--neg:#e74c3c;
-}
-body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px}
-/* ── HEADER ── */
-header{background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:16px}
-header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:var(--accent);letter-spacing:-0.3px;white-space:nowrap}
-header h1 span{color:var(--accent2)}
-.hdr-meta{font-size:11px;color:var(--text3);display:flex;gap:14px}
-.hdr-meta b{color:var(--text2)}
-#globalStatus{font-size:11px;color:var(--accent2);min-width:160px;text-align:right}
-/* ── LAYOUT ── */
-.main{display:flex;flex:1;overflow:hidden}
-/* ── PANELS ── */
-.panel{display:flex;flex-direction:column;overflow-y:auto;padding:12px;gap:10px}
-.panel-left{width:286px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border)}
-.panel-mid{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);min-width:0}
-.panel-right{width:272px;flex-shrink:0;background:var(--bg2);border-left:1px solid var(--border)}
-/* ── CARDS ── */
-.card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:11px}
-.card-title{font-family:'Syne',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:9px}
-/* ── GRID ── */
-#gridCanvas{display:block;border:1px solid var(--border2);border-radius:5px;cursor:crosshair;image-rendering:pixelated;margin:0 auto}
-.grid-tools{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-/* ── PREDICTION ── */
-.pred-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
-.pred-glyph{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;width:32px;text-align:center;line-height:1;color:var(--accent);flex-shrink:0}
-.pred-glyph.dim{color:var(--text3);font-size:20px}
-.pred-bar-bg{flex:1;height:14px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--border)}
-.pred-bar{height:100%;border-radius:2px;transition:width .15s ease}
-.pred-bar.top{background:linear-gradient(90deg,var(--accent),var(--accent2))}
-.pred-bar.low{background:var(--bg4)}
-.pred-pct{font-size:10px;color:var(--text2);width:38px;text-align:right;flex-shrink:0}
-.no-pred{color:var(--text3);font-size:12px;text-align:center;padding:12px 0;line-height:1.7}
-/* ── BUTTONS ── */
-btn,button{cursor:pointer;border:none;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;padding:6px 11px;transition:all .12s;flex-shrink:0}
-button:active{transform:scale(.97)}
-.btn-accent{background:var(--accent);color:#fff}
-.btn-accent:hover{background:#8f7fff}
-.btn-accent:disabled{background:var(--bg4);color:var(--text3);cursor:not-allowed}
-.btn-teal{background:var(--accent2);color:#000}
-.btn-teal:hover{background:#00ffca}
-.btn-ghost{background:var(--bg4);color:var(--text2);border:1px solid var(--border2)}
-.btn-ghost:hover{background:#22224a;color:var(--text)}
-.btn-danger{background:#5a1525;color:#ff8099;border:1px solid #7a2535}
-.btn-danger:hover{background:#7a1f30}
-.btn-full{width:100%}
-.btn-sm{padding:4px 8px;font-size:10px}
-.btn-row{display:flex;gap:6px;flex-wrap:wrap}
-/* ── INPUTS ── */
-input[type=text],input[type=number]{background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:5px 9px;font-family:inherit;font-size:12px;outline:none}
-input[type=text]:focus,input[type=number]:focus{border-color:var(--accent)}
-input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--bg4);border-radius:2px;outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--accent);border-radius:50%;cursor:pointer}
-input[type=checkbox]{accent-color:var(--accent);cursor:pointer}
-.row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.row label{font-size:11px;color:var(--text2);white-space:nowrap}
-/* ── TRAINING DATA LIST ── */
-.td-list{max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:3px}
-.td-item{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 7px}
-.td-glyph{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;width:22px;text-align:center;color:var(--accent2);flex-shrink:0}
-.td-count{flex:1;font-size:10px;color:var(--text3)}
-/* ── LOSS CHART ── */
-#lossCanvas{display:block;width:100%;height:72px;border-radius:4px;background:var(--bg)}
-/* ── NET TOOLBAR ── */
-.net-toolbar{display:flex;align-items:center;gap:12px;padding:7px 13px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;flex-wrap:wrap}
-.net-toolbar label{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
-.net-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--accent);margin-right:4px}
-/* ── NET CANVAS ── */
-.net-canvas-wrap{flex:1;overflow:auto;position:relative}
-#netCanvas{display:block;cursor:default}
-/* ── INFO PANEL ── */
-.info-panel{border-top:1px solid var(--border);background:var(--bg2);padding:10px 14px;flex-shrink:0;max-height:190px;overflow-y:auto;display:none}
-.info-panel.open{display:block}
-.info-panel h4{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px}
-.info-grid{display:flex;gap:16px;align-items:flex-start}
-.info-stats{font-size:11px;color:var(--text2);line-height:2}
-.info-stats b{color:var(--text)}
-.conn-grid{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.conn-chip{font-size:10px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid transparent;transition:all .1s}
-.conn-chip:hover{border-color:var(--text2)}
-.conn-chip.pos{background:#0d2e1a;color:#2ecc71;border-color:#1a4a2a}
-.conn-chip.neg{background:#2e0d15;color:#e74c3c;border-color:#4a1a22}
-.conn-chip.del{opacity:.35;text-decoration:line-through}
-#heatCanvas{border:1px solid var(--border2);border-radius:3px;image-rendering:pixelated}
-/* ── MODAL ── */
-.modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.75);align-items:center;justify-content:center}
-.modal.open{display:flex}
-.modal-box{background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:22px;width:340px;box-shadow:0 24px 60px rgba(0,0,0,.6)}
-.modal-box h3{font-family:'Syne',sans-serif;font-size:15px;color:var(--accent);margin-bottom:6px}
-.modal-box p{font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.6}
-.modal-box .row{margin-bottom:12px}
-.modal-box .row label{font-size:12px}
-.modal-box .row input{flex:1}
-.modal-acts{display:flex;gap:7px;flex-wrap:wrap}
-.modal-acts button{flex:1}
-/* ── MISC ── */
-.badge{background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-size:10px;color:var(--text2)}
-.sep{height:1px;background:var(--border);margin:4px 0}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-#trainStatus{font-size:11px;color:var(--accent2);margin-left:auto;white-space:nowrap}
-.net-stat{font-size:10px;color:var(--text3)}
-.net-stat b{color:var(--accent)}
-#activCanvas{display:block;width:100%;height:50px;border-radius:4px;background:var(--bg)}
-</style>
-</head>
-<body>
-
-<header>
-  <h1>🧠 Neural <span>Character</span> Trainer</h1>
-  <div class="hdr-meta">
-    <span>Input <b>256</b></span>
-    <span>Hidden <b>24</b></span>
-    <span>Output <b id="hdrOut">0</b></span>
-  </div>
-  <div id="globalStatus"></div>
-</header>
-
-<div class="main">
-
-  <!-- LEFT -->
-  <div class="panel panel-left">
-
-    <div class="card">
-      <div class="card-title">Draw Character</div>
-      <canvas id="gridCanvas"></canvas>
-      <div class="grid-tools">
-        <button class="btn-ghost btn-sm" id="btnClear">Clear</button>
-        <button class="btn-ghost btn-sm" id="btnErase">✏ Draw</button>
-        <button class="btn-ghost btn-sm" id="btnInvert">Invert</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Live Prediction</div>
-      <div id="predDisplay"><div class="no-pred">Train the network first,<br>then draw to predict.</div></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Hidden Activations</div>
-      <canvas id="activCanvas"></canvas>
-    </div>
-
-  </div>
-
-  <!-- MIDDLE -->
-  <div class="panel-mid">
-    <div class="net-toolbar">
-      <span class="net-title">Network Visualization</span>
-      <label><input type="checkbox" id="chkAll"> Show All Connections</label>
-      <label><input type="checkbox" id="chkHeat" checked> Weight Heatmap</label>
-      <span class="net-stat">Click nodes or lines to inspect · <b>Green</b>=positive · <b>Red</b>=negative</span>
-      <span id="trainStatus"></span>
-    </div>
-    <div class="net-canvas-wrap" id="netWrap">
-      <canvas id="netCanvas"></canvas>
-    </div>
-    <div class="info-panel" id="infoPanel">
-      <div id="infoContent"></div>
-    </div>
-  </div>
-
-  <!-- RIGHT -->
-  <div class="panel panel-right">
-
-    <div class="card">
-      <div class="card-title">Train</div>
-      <div class="row">
-        <label>Character:</label>
-        <input type="text" id="trainChar" maxlength="1" placeholder="A" style="width:44px;text-align:center;font-size:20px;font-weight:700">
-        <button class="btn-accent" id="btnAdd">Add</button>
-      </div>
-      <div class="row">
-        <label>LR:</label>
-        <input type="range" id="lrSlider" min="0.001" max="0.5" step="0.001" value="0.05" style="flex:1">
-        <span id="lrVal" style="font-size:11px;width:36px;text-align:right;color:var(--text2)">0.050</span>
-      </div>
-      <div class="btn-row" style="margin-top:4px">
-        <button class="btn-ghost btn-full" id="btnTrainOne" disabled>Train 1×</button>
-      </div>
-      <div class="sep" style="margin-top:8px"></div>
-      <div class="row" style="margin-top:6px">
-        <label>Epochs:</label>
-        <input type="number" id="epochsIn" value="200" min="1" max="50000" style="width:68px">
-        <button class="btn-accent" id="btnTrainAll" disabled>Train All</button>
-      </div>
-      <div id="lossDisp" style="font-size:11px;color:var(--text3);margin-top:6px">Loss: —</div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Loss Chart</div>
-      <canvas id="lossCanvas" width="240" height="72"></canvas>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Training Data</div>
-      <div class="td-list" id="tdList"><div class="no-pred" style="padding:6px 0">No examples yet.</div></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
-        <button class="btn-danger btn-sm" id="btnClearData">Clear All</button>
-        <span class="badge" id="tdCount">0 examples</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Network Controls</div>
-      <div style="display:flex;flex-direction:column;gap:5px">
-        <button class="btn-ghost btn-full" id="btnRandAll">Randomize All Weights</button>
-        <button class="btn-ghost btn-full" id="btnRandIH">Randomize Input → Hidden</button>
-        <button class="btn-ghost btn-full" id="btnRandHO">Randomize Hidden → Output</button>
-        <button class="btn-danger btn-full" id="btnReset">⚠ Reset Network</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Save / Load</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <button class="btn-teal btn-full" id="btnSave">💾 Save Session</button>
-        <button class="btn-ghost btn-full" id="btnLoad">📂 Load Session</button>
-        <input type="file" id="fileIn" accept=".json" style="display:none">
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- WEIGHT MODAL -->
-<div class="modal" id="wModal">
-  <div class="modal-box">
-    <h3>⚡ Connection Editor</h3>
-    <p id="wModalInfo">—</p>
-    <div class="row">
-      <label>Weight:</label>
-      <input type="number" id="wVal" step="0.0001">
-    </div>
-    <div class="modal-acts">
-      <button class="btn-accent" id="btnWSave">Save</button>
-      <button class="btn-ghost" id="btnWRand">Randomize</button>
-      <button class="btn-danger" id="btnWDel">Delete</button>
-      <button class="btn-ghost" id="btnWClose">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<script>
-'use strict';
-// ═══════════════════════════════════════════════
-// NEURAL NETWORK
-// ═══════════════════════════════════════════════
-class NN {
-  constructor(inSz=256, hidSz=24) {
-    this.inSz=inSz; this.hidSz=hidSz;
-    this.labels=[]; this.outSz=0;
-    this.wIH=[]; this.wHO=[]; this.bH=[]; this.bO=[];
-    this.deleted=new Set();
-    this._initIH();
-  }
-  _initIH(){
-    this.wIH=[]; this.bH=[];
-    for(let h=0;h<this.hidSz;h++){
-      this.wIH[h]=Array.from({length:this.inSz},()=>(Math.random()-.5)*.25);
-      this.bH[h]=(Math.random()-.5)*.1;
-    }
-  }
-  addOut(label){
-    if(this.labels.includes(label))return false;
-    this.labels.push(label); this.outSz++;
-    this.wHO.push(Array.from({length:this.hidSz},()=>(Math.random()-.5)*.25));
-    this.bO.push(0); return true;
-  }
-  sig(x){return 1/(1+Math.exp(-Math.max(-50,Math.min(50,x))))}
-  forward(inp){
-    const hid=new Array(this.hidSz);
-    for(let h=0;h<this.hidSz;h++){
-      let s=this.bH[h];
-      for(let i=0;i<this.inSz;i++) s+=inp[i]*this.wIH[h][i];
-      hid[h]=this.sig(s);
-    }
-    if(!this.outSz) return {hid,out:[],sm:[]};
-    const raw=new Array(this.outSz);
-    for(let o=0;o<this.outSz;o++){
-      let s=this.bO[o];
-      for(let h=0;h<this.hidSz;h++)
-        if(!this.deleted.has(`${h}-${o}`)) s+=hid[h]*this.wHO[o][h];
-      raw[o]=s;
-    }
-    const mx=Math.max(...raw);
-    const ex=raw.map(x=>Math.exp(x-mx));
-    const se=ex.reduce((a,b)=>a+b,0);
-    const sm=ex.map(x=>x/se);
-    const out=raw.map(x=>this.sig(x));
-    return {hid,out,sm};
-  }
-  train(inp,label,lr=0.05){
-    this.addOut(label);
-    const {hid,out}=this.forward(inp);
-    const ti=this.labels.indexOf(label);
-    const tgt=new Array(this.outSz).fill(0); tgt[ti]=1;
-    const odelta=out.map((o,i)=>(tgt[i]-o)*o*(1-o));
-    const herr=new Array(this.hidSz).fill(0);
-    for(let h=0;h<this.hidSz;h++)
-      for(let o=0;o<this.outSz;o++)
-        if(!this.deleted.has(`${h}-${o}`)) herr[h]+=odelta[o]*this.wHO[o][h];
-    const hdelta=herr.map((e,i)=>e*hid[i]*(1-hid[i]));
-    for(let o=0;o<this.outSz;o++){
-      for(let h=0;h<this.hidSz;h++)
-        if(!this.deleted.has(`${h}-${o}`)) this.wHO[o][h]+=lr*odelta[o]*hid[h];
-      this.bO[o]+=lr*odelta[o];
-    }
-    for(let h=0;h<this.hidSz;h++){
-      for(let i=0;i<this.inSz;i++) this.wIH[h][i]+=lr*hdelta[h]*inp[i];
-      this.bH[h]+=lr*hdelta[h];
-    }
-    return tgt.reduce((s,t,i)=>s+(t-out[i])**2,0)/this.outSz;
-  }
-  randWeights(layer){
-    if(layer==='IH'||layer==='all') this._initIH();
-    if(layer==='HO'||layer==='all')
-      for(let o=0;o<this.outSz;o++){
-        this.wHO[o]=Array.from({length:this.hidSz},()=>(Math.random()-.5)*.25);
-        this.bO[o]=0;
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Character Trainer</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0
       }
-  }
-  toJSON(){
-    return{v:1,inSz:this.inSz,hidSz:this.hidSz,labels:this.labels,
-      wIH:this.wIH,wHO:this.wHO,bH:this.bH,bO:this.bO,
-      deleted:[...this.deleted]};
-  }
-  static fromJSON(d){
-    const n=new NN(d.inSz,d.hidSz);
-    n.labels=d.labels; n.outSz=d.labels.length;
-    n.wIH=d.wIH; n.wHO=d.wHO; n.bH=d.bH; n.bO=d.bO;
-    n.deleted=new Set(d.deleted||[]);
-    return n;
-  }
-}
 
-// ═══════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════
-const GS=16, CS=16;
-let nn=new NN(256,24);
-let grid=new Array(GS*GS).fill(0);
-let trainingData=[];   // [{label,inputs:[[],...]}]
-let lossHist=[];
-let acts={hid:null,out:null,sm:null};
-let drawing=false, erasing=false;
-let selNode=null;   // {type:'hid'|'out',idx}
-let selConn=null;   // {h,o}
-let hovNode=null, hovConn=null;
-let modalConn=null;
-let predTimer=null;
-let isTraining=false;
-
-// ═══════════════════════════════════════════════
-// GRID
-// ═══════════════════════════════════════════════
-const gCvs=document.getElementById('gridCanvas');
-gCvs.width=GS*CS; gCvs.height=GS*CS;
-gCvs.style.width=(GS*CS)+'px'; gCvs.style.height=(GS*CS)+'px';
-const gCtx=gCvs.getContext('2d');
-
-function drawGrid(){
-  gCtx.fillStyle='#0a0a18';
-  gCtx.fillRect(0,0,gCvs.width,gCvs.height);
-  gCtx.strokeStyle='#1e1e3a';
-  gCtx.lineWidth=1;
-  for(let i=0;i<=GS;i++){
-    gCtx.beginPath(); gCtx.moveTo(i*CS,0); gCtx.lineTo(i*CS,gCvs.height); gCtx.stroke();
-    gCtx.beginPath(); gCtx.moveTo(0,i*CS); gCtx.lineTo(gCvs.width,i*CS); gCtx.stroke();
-  }
-  for(let i=0;i<grid.length;i++) if(grid[i]) drawCell(i);
-}
-function drawCell(idx){
-  const c=idx%GS, r=Math.floor(idx/GS);
-  gCtx.fillStyle=grid[idx]?'#d0c0ff':'#0a0a18';
-  gCtx.fillRect(c*CS+1,r*CS+1,CS-2,CS-2);
-}
-function cellAt(e){
-  const rect=gCvs.getBoundingClientRect();
-  const c=Math.floor((e.clientX-rect.left)/CS);
-  const r=Math.floor((e.clientY-rect.top)/CS);
-  if(c<0||c>=GS||r<0||r>=GS) return -1;
-  return r*GS+c;
-}
-function setCell(idx,v){
-  if(idx<0||idx>=grid.length||grid[idx]===v) return;
-  grid[idx]=v; drawCell(idx); schedulePred();
-}
-gCvs.addEventListener('mousedown',e=>{
-  e.preventDefault(); drawing=true;
-  erasing=(e.button===2||e.ctrlKey)||erasing;
-  const i=cellAt(e); if(i>=0) setCell(i,erasing?0:1);
-});
-gCvs.addEventListener('mousemove',e=>{if(drawing){const i=cellAt(e);if(i>=0)setCell(i,erasing?0:1);}});
-gCvs.addEventListener('mouseup',()=>drawing=false);
-gCvs.addEventListener('mouseleave',()=>drawing=false);
-gCvs.addEventListener('contextmenu',e=>e.preventDefault());
-
-// ═══════════════════════════════════════════════
-// PREDICTION
-// ═══════════════════════════════════════════════
-function schedulePred(){
-  clearTimeout(predTimer);
-  predTimer=setTimeout(runPred,55);
-}
-function runPred(){
-  const result=nn.forward(grid);
-  acts=result;
-  const el=document.getElementById('predDisplay');
-  if(!nn.outSz){
-    el.innerHTML='<div class="no-pred">Train the network first,<br>then draw to predict.</div>';
-  } else {
-    const sorted=result.sm.map((p,i)=>({p,i,l:nn.labels[i]})).sort((a,b)=>b.p-a.p).slice(0,3);
-    el.innerHTML=sorted.map((x,rank)=>`
-      <div class="pred-row">
-        <div class="pred-glyph ${rank?'dim':''}">${x.l}</div>
-        <div class="pred-bar-bg"><div class="pred-bar ${rank?'low':'top'}" style="width:${(x.p*100).toFixed(1)}%"></div></div>
-        <div class="pred-pct">${(x.p*100).toFixed(1)}%</div>
-      </div>`).join('');
-  }
-  drawNet(); drawActiv();
-}
-
-// ═══════════════════════════════════════════════
-// NETWORK CANVAS
-// ═══════════════════════════════════════════════
-const nCvs=document.getElementById('netCanvas');
-const nCtx=nCvs.getContext('2d');
-const nWrap=document.getElementById('netWrap');
-
-function layout(){
-  const W=nCvs.width, H=nCvs.height;
-  const hc=nn.hidSz, oc=nn.outSz;
-  const PAD=50;
-  const hSp=hc>1?Math.min(28,(H-PAD*2)/(hc-1)):0;
-  const hTH=hSp*(hc-1);
-  const hSY=(H-hTH)/2;
-  const oSp=oc>1?Math.min(28,(H-PAD*2)/(oc-1)):0;
-  const oTH=oc>1?oSp*(oc-1):0;
-  const oSY=oc?(H-oTH)/2:H/2;
-  const hX=W*.38, oX=W*.82;
-  const THUMB=80, tX=W*.04, tY=(H-THUMB)/2;
-  return{W,H,hc,oc,hSp,hSY,oSp,oSY,hX,oX,THUMB,tX,tY,rH:9,rO:14};
-}
-function hPos(i,L){return{x:L.hX,y:L.hSY+i*L.hSp}}
-function oPos(i,L){return{x:L.oX,y:L.oSY+i*L.oSp}}
-
-function resizeNet(){
-  const W=nWrap.clientWidth||700;
-  const hc=nn.hidSz, oc=nn.outSz;
-  const minH=Math.max(hc*26+100, oc>0?oc*26+100:200, 380);
-  const H=Math.max(minH, nWrap.clientHeight||380);
-  nCvs.width=W; nCvs.height=H;
-  nCvs.style.width=W+'px'; nCvs.style.height=H+'px';
-}
-
-function drawInputThumb(ctx,L){
-  const {tX,tY,THUMB,hX}=L;
-  const CELL=THUMB/GS;
-  ctx.fillStyle='#0a0a18';
-  ctx.fillRect(tX,tY,THUMB,THUMB);
-  const showHeat=document.getElementById('chkHeat').checked&&selNode&&selNode.type==='hid';
-  if(showHeat){
-    const w=nn.wIH[selNode.idx];
-    const mx=Math.max(...w.map(Math.abs),1e-6);
-    for(let i=0;i<GS*GS;i++){
-      const col=i%GS,row=Math.floor(i/GS);
-      const nw=w[i]/mx;
-      let r,g,b;
-      if(nw>0){r=20;g=Math.floor(40+nw*200);b=60;}
-      else{r=Math.floor(40+(-nw)*200);g=20;b=40;}
-      const a=grid[i]?1:.65;
-      ctx.fillStyle=`rgba(${r},${g},${b},${a})`;
-      ctx.fillRect(tX+col*CELL+.5,tY+row*CELL+.5,CELL-.5,CELL-.5);
-    }
-  } else {
-    for(let i=0;i<GS*GS;i++){
-      if(grid[i]){
-        const col=i%GS,row=Math.floor(i/GS);
-        ctx.fillStyle='#b8a8ff';
-        ctx.fillRect(tX+col*CELL+.5,tY+row*CELL+.5,CELL-.5,CELL-.5);
+      :root {
+        --bg: #070711;
+        --bg2: #0e0e1c;
+        --bg3: #141428;
+        --bg4: #1a1a35;
+        --border: #252540;
+        --border2: #323258;
+        --accent: #7c6aff;
+        --accent2: #00e5b0;
+        --accent3: #ff5f87;
+        --text: #c8c8e8;
+        --text2: #7878a8;
+        --text3: #454568;
+        --node-h: #4a3aee;
+        --node-o: #00b87a;
+        --pos: #2ecc71;
+        --neg: #e74c3c;
       }
-    }
-  }
-  ctx.strokeStyle='#3a3a6a';ctx.lineWidth=1;
-  ctx.strokeRect(tX,tY,THUMB,THUMB);
-  ctx.fillStyle='#3a3a58';ctx.font='10px JetBrains Mono';ctx.textAlign='center';
-  ctx.fillText('INPUT 16×16',tX+THUMB/2,tY+THUMB+13);
-  // Arrow
-  const ay=tY+THUMB/2;
-  ctx.strokeStyle='#2a2a50';ctx.lineWidth=1;ctx.setLineDash([4,4]);
-  ctx.beginPath();ctx.moveTo(tX+THUMB+3,ay);ctx.lineTo(hX-L.rH-8,ay);ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='#2a2a50';
-  ctx.beginPath();ctx.moveTo(hX-L.rH-8,ay-4);ctx.lineTo(hX-L.rH-1,ay);ctx.lineTo(hX-L.rH-8,ay+4);ctx.fill();
-  if(selNode&&selNode.type==='hid'){
-    ctx.fillStyle='#4a4a7a';ctx.font='9px JetBrains Mono';ctx.textAlign='center';
-    ctx.fillText('Weight Heatmap',tX+THUMB/2,tY-4);
-  }
-}
 
-function wColor(w,a){
-  return w>0?`rgba(46,204,113,${a})`:`rgba(231,76,60,${a})`;
-}
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'JetBrains Mono', monospace;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        font-size: 13px
+      }
 
-function drawNet(){
-  resizeNet();
-  const ctx=nCtx;
-  const L=layout();
-  ctx.clearRect(0,0,L.W,L.H);
-  ctx.fillStyle='#070711';
-  ctx.fillRect(0,0,L.W,L.H);
+      /* ── HEADER ── */
+      header {
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        padding: 8px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+        gap: 16px
+      }
 
-  drawInputThumb(ctx,L);
+      header h1 {
+        font-family: 'Syne', sans-serif;
+        font-weight: 800;
+        font-size: 17px;
+        color: var(--accent);
+        letter-spacing: -0.3px;
+        white-space: nowrap
+      }
 
-  const showAll=document.getElementById('chkAll').checked;
+      header h1 span {
+        color: var(--accent2)
+      }
 
-  // Connections
-  for(let h=0;h<L.hc;h++){
-    for(let o=0;o<L.oc;o++){
-      const key=`${h}-${o}`;
-      if(nn.deleted.has(key)) continue;
-      const w=nn.wHO[o][h];
-      const mag=Math.abs(w);
-      const isSelH=selNode&&selNode.type==='hid'&&selNode.idx===h;
-      const isSelO=selNode&&selNode.type==='out'&&selNode.idx===o;
-      const isSC=selConn&&selConn.h===h&&selConn.o===o;
-      const isHC=hovConn&&hovConn.h===h&&hovConn.o===o;
-      const hi=isSelH||isSelO||isSC;
-      if(!hi&&!showAll&&mag<0.08) continue;
-      const hp=hPos(h,L), op=oPos(o,L);
-      let alpha,lw;
-      if(isSC){alpha=1;lw=2.5;}
-      else if(isHC){alpha=.9;lw=2;}
-      else if(hi){alpha=Math.min(1,.25+mag*2);lw=Math.max(.5,mag*2.2);}
-      else{alpha=Math.min(.55,mag*1.5);lw=Math.max(.3,mag*1.5);}
-      ctx.beginPath();
-      ctx.moveTo(hp.x+L.rH,hp.y);ctx.lineTo(op.x-L.rO,op.y);
-      ctx.strokeStyle=(isSC||isHC)?'rgba(255,255,255,.9)':wColor(w,alpha);
-      ctx.lineWidth=lw;ctx.stroke();
-    }
-  }
+      .hdr-meta {
+        font-size: 11px;
+        color: var(--text3);
+        display: flex;
+        gap: 14px
+      }
 
-  // Hidden nodes
-  ctx.textBaseline='middle';
-  for(let h=0;h<L.hc;h++){
-    const {x,y}=hPos(h,L);
-    const act=acts.hid?acts.hid[h]:0;
-    const isSel=selNode&&selNode.type==='hid'&&selNode.idx===h;
-    const isHov=hovNode&&hovNode.type==='hid'&&hovNode.idx===h;
-    if(act>.5){ctx.shadowColor=`rgba(124,106,255,${act*.8})`;ctx.shadowBlur=10;}
-    ctx.beginPath();ctx.arc(x,y,L.rH,0,Math.PI*2);
-    ctx.fillStyle=isSel?'#7c6aff':`rgb(${Math.floor(act*60+15)},${Math.floor(act*40+10)},${Math.floor(act*200+30)})`;
-    ctx.fill();ctx.shadowBlur=0;
-    ctx.strokeStyle=isSel?'#fff':(isHov?'#9d94ff':'#2a2a55');
-    ctx.lineWidth=isSel?2:1;ctx.stroke();
-    ctx.fillStyle='#404068';ctx.font='8px JetBrains Mono';ctx.textAlign='center';
-    ctx.fillText(h,x,y);
-  }
+      .hdr-meta b {
+        color: var(--text2)
+      }
 
-  // Output nodes
-  for(let o=0;o<L.oc;o++){
-    const {x,y}=oPos(o,L);
-    const sm=acts.sm?acts.sm[o]:0;
-    const label=nn.labels[o];
-    const isSel=selNode&&selNode.type==='out'&&selNode.idx===o;
-    const isHov=hovNode&&hovNode.type==='out'&&hovNode.idx===o;
-    if(sm>.25){ctx.shadowColor=`rgba(0,229,176,${sm*.9})`;ctx.shadowBlur=14;}
-    ctx.beginPath();ctx.arc(x,y,L.rO,0,Math.PI*2);
-    ctx.fillStyle=`rgba(0,${Math.floor(50+sm*90)},${Math.floor(60+sm*80)},${.3+sm*.7})`;
-    ctx.fill();ctx.shadowBlur=0;
-    ctx.strokeStyle=isSel?'#fff':(isHov?'#00e5b0':`rgba(0,229,176,${.2+sm*.8})`);
-    ctx.lineWidth=isSel?2.5:(sm>.3?2:1);ctx.stroke();
-    ctx.fillStyle=sm>.45?'#fff':(sm>.1?'#00e5b0':'#3a7a68');
-    ctx.font=`bold 13px JetBrains Mono`;ctx.textAlign='center';
-    ctx.fillText(label,x,y);
-    // Mini confidence bar
-    const bW=28;
-    ctx.fillStyle='#111128';ctx.fillRect(x+L.rO+4,y-3,bW,6);
-    ctx.fillStyle='#00e5b0';ctx.fillRect(x+L.rO+4,y-3,bW*sm,6);
-  }
+      #globalStatus {
+        font-size: 11px;
+        color: var(--accent2);
+        min-width: 160px;
+        text-align: right
+      }
 
-  // Layer labels
-  ctx.textBaseline='alphabetic';ctx.textAlign='center';
-  ctx.fillStyle='#2a2a48';ctx.font='10px JetBrains Mono';
-  ctx.fillText('HIDDEN (24)',L.hX,L.H-10);
-  if(L.oc) ctx.fillText('OUTPUT',L.oX,L.H-10);
-  else{ctx.fillStyle='#1e1e38';ctx.fillText('OUTPUT (train to add)',L.oX,L.H/2+30);}
-}
+      /* ── LAYOUT ── */
+      .main {
+        display: flex;
+        flex: 1;
+        overflow: hidden
+      }
 
-// ═══════════════════════════════════════════════
-// NET MOUSE EVENTS
-// ═══════════════════════════════════════════════
-function mp(e){
-  const r=nCvs.getBoundingClientRect();
-  return{x:(e.clientX-r.left)*(nCvs.width/r.width),y:(e.clientY-r.top)*(nCvs.height/r.height)};
-}
-function nodeAt(x,y,L){
-  for(let h=0;h<L.hc;h++){const p=hPos(h,L);if((x-p.x)**2+(y-p.y)**2<=(L.rH+5)**2)return{type:'hid',idx:h};}
-  for(let o=0;o<L.oc;o++){const p=oPos(o,L);if((x-p.x)**2+(y-p.y)**2<=(L.rO+5)**2)return{type:'out',idx:o};}
-  return null;
-}
-function connAt(x,y,L){
-  const THR=7;
-  let best=null,bd=THR;
-  for(let h=0;h<L.hc;h++)for(let o=0;o<L.oc;o++){
-    if(nn.deleted.has(`${h}-${o}`)) continue;
-    const hp=hPos(h,L),op=oPos(o,L);
-    const x1=hp.x+L.rH,y1=hp.y,x2=op.x-L.rO,y2=op.y;
-    const dx=x2-x1,dy=y2-y1,lsq=dx*dx+dy*dy;
-    let t=lsq?((x-x1)*dx+(y-y1)*dy)/lsq:0;
-    t=Math.max(0,Math.min(1,t));
-    const d=Math.hypot(x-(x1+t*dx),y-(y1+t*dy));
-    if(d<bd){bd=d;best={h,o};}
-  }
-  return best;
-}
-nCvs.addEventListener('click',e=>{
-  const{x,y}=mp(e);const L=layout();
-  const nd=nodeAt(x,y,L);
-  if(nd){
-    selNode=(selNode&&selNode.type===nd.type&&selNode.idx===nd.idx)?null:nd;
-    selConn=null; updateInfo(); drawNet(); return;
-  }
-  const cn=connAt(x,y,L);
-  if(cn){selConn=cn;selNode=null;openModal(cn);updateInfo();drawNet();return;}
-  selNode=null;selConn=null;updateInfo();drawNet();
-});
-nCvs.addEventListener('mousemove',e=>{
-  const{x,y}=mp(e);const L=layout();
-  const nd=nodeAt(x,y,L);
-  const cn=nd?null:connAt(x,y,L);
-  const ch=JSON.stringify(hovNode)!==JSON.stringify(nd)||JSON.stringify(hovConn)!==JSON.stringify(cn);
-  hovNode=nd;hovConn=cn;
-  nCvs.style.cursor=(nd||cn)?'pointer':'default';
-  if(ch)drawNet();
-});
+      /* ── PANELS ── */
+      .panel {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding: 12px;
+        gap: 10px
+      }
 
-// ═══════════════════════════════════════════════
-// INFO PANEL
-// ═══════════════════════════════════════════════
-function updateInfo(){
-  const panel=document.getElementById('infoPanel');
-  const cont=document.getElementById('infoContent');
-  if(!selNode&&!selConn){panel.classList.remove('open');return;}
-  panel.classList.add('open');
-  if(selNode){
-    const{type,idx}=selNode;
-    if(type==='hid'){
-      const act=acts.hid?acts.hid[idx].toFixed(4):'—';
-      const bias=nn.bH[idx].toFixed(4);
-      const chips=nn.labels.map((l,o)=>{
-        const k=`${idx}-${o}`;
-        if(nn.deleted.has(k)) return`<span class="conn-chip del" onclick="openModalDirect(${idx},${o})">${l}:del</span>`;
-        const w=nn.wHO[o][idx];
-        return`<span class="conn-chip ${w>0?'pos':'neg'}" onclick="openModalDirect(${idx},${o})" title="${w.toFixed(4)}">${l}:${w>0?'+':''}${w.toFixed(2)}</span>`;
-      }).join('');
-      cont.innerHTML=`
-        <div class="info-grid">
-          <div>
-            <h4>Hidden Node #${idx}</h4>
-            <div class="info-stats">Activation: <b>${act}</b> &nbsp; Bias: <b>${bias}</b>
-              <button class="btn-ghost btn-sm" style="margin-left:8px" onclick="editBias('hid',${idx})">Edit Bias</button>
-            </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:8px;margin-bottom:4px">→ Output Connections</div>
-            <div class="conn-grid">${chips||'<span style="color:var(--text3);font-size:11px">No output nodes yet</span>'}</div>
+      .panel-left {
+        width: 308px;
+        flex-shrink: 0;
+        background: var(--bg2);
+        border-right: 1px solid var(--border)
+      }
+
+      .panel-mid {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--bg);
+        min-width: 0
+      }
+
+      .panel-right {
+        width: 272px;
+        flex-shrink: 0;
+        background: var(--bg2);
+        border-left: 1px solid var(--border)
+      }
+
+      /* ── CARDS ── */
+      .card {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 11px
+      }
+
+      .card-title {
+        font-family: 'Syne', sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--text3);
+        margin-bottom: 9px
+      }
+
+      /* ── GRID ── */
+      #gridCanvas {
+        display: block;
+        border: 1px solid var(--border2);
+        border-radius: 5px;
+        cursor: crosshair;
+        image-rendering: pixelated;
+        margin: 0 auto
+      }
+
+      .grid-tools {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        flex-wrap: wrap
+      }
+
+      /* ── PREDICTION ── */
+      .pred-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px
+      }
+
+      .pred-glyph {
+        font-family: 'Syne', sans-serif;
+        font-size: 28px;
+        font-weight: 800;
+        width: 32px;
+        text-align: center;
+        line-height: 1;
+        color: var(--accent);
+        flex-shrink: 0
+      }
+
+      .pred-glyph.dim {
+        color: var(--text3);
+        font-size: 20px
+      }
+
+      .pred-bar-bg {
+        flex: 1;
+        height: 14px;
+        background: var(--bg);
+        border-radius: 3px;
+        overflow: hidden;
+        border: 1px solid var(--border)
+      }
+
+      .pred-bar {
+        height: 100%;
+        border-radius: 2px;
+        transition: width .15s ease
+      }
+
+      .pred-bar.top {
+        background: linear-gradient(90deg, var(--accent), var(--accent2))
+      }
+
+      .pred-bar.low {
+        background: var(--bg4)
+      }
+
+      .pred-pct {
+        font-size: 10px;
+        color: var(--text2);
+        width: 38px;
+        text-align: right;
+        flex-shrink: 0
+      }
+
+      .no-pred {
+        color: var(--text3);
+        font-size: 12px;
+        text-align: center;
+        padding: 12px 0;
+        line-height: 1.7
+      }
+
+      /* ── BUTTONS ── */
+      btn,
+      button {
+        cursor: pointer;
+        border: none;
+        border-radius: 5px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 6px 11px;
+        transition: all .12s;
+        flex-shrink: 0
+      }
+
+      button:active {
+        transform: scale(.97)
+      }
+
+      .btn-accent {
+        background: var(--accent);
+        color: #fff
+      }
+
+      .btn-accent:hover {
+        background: #8f7fff
+      }
+
+      .btn-accent:disabled {
+        background: var(--bg4);
+        color: var(--text3);
+        cursor: not-allowed
+      }
+
+      .btn-teal {
+        background: var(--accent2);
+        color: #000
+      }
+
+      .btn-teal:hover {
+        background: #00ffca
+      }
+
+      .btn-ghost {
+        background: var(--bg4);
+        color: var(--text2);
+        border: 1px solid var(--border2)
+      }
+
+      .btn-ghost:hover {
+        background: #22224a;
+        color: var(--text)
+      }
+
+      .btn-danger {
+        background: #5a1525;
+        color: #ff8099;
+        border: 1px solid #7a2535
+      }
+
+      .btn-danger:hover {
+        background: #7a1f30
+      }
+
+      .btn-full {
+        width: 100%
+      }
+
+      .btn-sm {
+        padding: 4px 8px;
+        font-size: 10px
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap
+      }
+
+      /* ── INPUTS ── */
+      input[type=text],
+      input[type=number] {
+        background: var(--bg);
+        border: 1px solid var(--border2);
+        border-radius: 5px;
+        color: var(--text);
+        padding: 5px 9px;
+        font-family: inherit;
+        font-size: 12px;
+        outline: none
+      }
+
+      input[type=text]:focus,
+      input[type=number]:focus {
+        border-color: var(--accent)
+      }
+
+      input[type=range] {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 3px;
+        background: var(--bg4);
+        border-radius: 2px;
+        outline: none
+      }
+
+      input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 13px;
+        height: 13px;
+        background: var(--accent);
+        border-radius: 50%;
+        cursor: pointer
+      }
+
+      input[type=checkbox] {
+        accent-color: var(--accent);
+        cursor: pointer
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px
+      }
+
+      .row label {
+        font-size: 11px;
+        color: var(--text2);
+        white-space: nowrap
+      }
+
+      /* ── TRAINING DATA LIST ── */
+      .td-list {
+        max-height: 140px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 3px
+      }
+
+      .td-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 4px 7px
+      }
+
+      .td-glyph {
+        font-family: 'Syne', sans-serif;
+        font-size: 18px;
+        font-weight: 800;
+        width: 22px;
+        text-align: center;
+        color: var(--accent2);
+        flex-shrink: 0
+      }
+
+      .td-count {
+        flex: 1;
+        font-size: 10px;
+        color: var(--text3)
+      }
+
+      /* ── LOSS CHART ── */
+      #lossCanvas {
+        display: block;
+        width: 100%;
+        height: 72px;
+        border-radius: 4px;
+        background: var(--bg)
+      }
+
+      /* ── NET TOOLBAR ── */
+      .net-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 7px 13px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg2);
+        flex-shrink: 0;
+        flex-wrap: wrap
+      }
+
+      .net-toolbar label {
+        font-size: 11px;
+        color: var(--text2);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        white-space: nowrap
+      }
+
+      .net-title {
+        font-family: 'Syne', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent);
+        margin-right: 4px
+      }
+
+      /* ── NET CANVAS ── */
+      .net-canvas-wrap {
+        flex: 1;
+        overflow: auto;
+        position: relative
+      }
+
+      #netCanvas {
+        display: block;
+        cursor: default
+      }
+
+      /* ── INFO PANEL ── */
+      .info-panel {
+        border-top: 1px solid var(--border);
+        background: var(--bg2);
+        padding: 10px 14px;
+        flex-shrink: 0;
+        max-height: 190px;
+        overflow-y: auto;
+        display: none
+      }
+
+      .info-panel.open {
+        display: block
+      }
+
+      .info-panel h4 {
+        font-family: 'Syne', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 8px
+      }
+
+      .info-grid {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start
+      }
+
+      .info-stats {
+        font-size: 11px;
+        color: var(--text2);
+        line-height: 2
+      }
+
+      .info-stats b {
+        color: var(--text)
+      }
+
+      .conn-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 6px
+      }
+
+      .conn-chip {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all .1s
+      }
+
+      .conn-chip:hover {
+        border-color: var(--text2)
+      }
+
+      .conn-chip.pos {
+        background: #0d2e1a;
+        color: #2ecc71;
+        border-color: #1a4a2a
+      }
+
+      .conn-chip.neg {
+        background: #2e0d15;
+        color: #e74c3c;
+        border-color: #4a1a22
+      }
+
+      .conn-chip.del {
+        opacity: .35;
+        text-decoration: line-through
+      }
+
+      #heatCanvas {
+        border: 1px solid var(--border2);
+        border-radius: 3px;
+        image-rendering: pixelated
+      }
+
+      /* ── MODAL ── */
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        background: rgba(0, 0, 0, .75);
+        align-items: center;
+        justify-content: center
+      }
+
+      .modal.open {
+        display: flex
+      }
+
+      .modal-box {
+        background: var(--bg3);
+        border: 1px solid var(--border2);
+        border-radius: 12px;
+        padding: 22px;
+        width: 340px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, .6)
+      }
+
+      .modal-box h3 {
+        font-family: 'Syne', sans-serif;
+        font-size: 15px;
+        color: var(--accent);
+        margin-bottom: 6px
+      }
+
+      .modal-box p {
+        font-size: 11px;
+        color: var(--text2);
+        margin-bottom: 14px;
+        line-height: 1.6
+      }
+
+      .modal-box .row {
+        margin-bottom: 12px
+      }
+
+      .modal-box .row label {
+        font-size: 12px
+      }
+
+      .modal-box .row input {
+        flex: 1
+      }
+
+      .modal-acts {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap
+      }
+
+      .modal-acts button {
+        flex: 1
+      }
+
+      /* ── MISC ── */
+      .badge {
+        background: var(--bg4);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 2px 8px;
+        font-size: 10px;
+        color: var(--text2)
+      }
+
+      .sep {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0
+      }
+
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 3px
+      }
+
+      #trainStatus {
+        font-size: 11px;
+        color: var(--accent2);
+        margin-left: auto;
+        white-space: nowrap
+      }
+
+      .net-stat {
+        font-size: 10px;
+        color: var(--text3)
+      }
+
+      .net-stat b {
+        color: var(--accent)
+      }
+
+      #activCanvas {
+        display: block;
+        width: 100%;
+        height: 50px;
+        border-radius: 4px;
+        background: var(--bg)
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🧠 Neural <span>Character</span> Trainer </h1>
+      <div class="hdr-meta">
+        <span>Input <b>256</b>
+        </span>
+        <span>Hidden <b>24</b>
+        </span>
+        <span>Output <b id="hdrOut">0</b>
+        </span>
+      </div>
+      <div id="globalStatus"></div>
+    </header>
+    <div class="main">
+      <!-- LEFT -->
+      <div class="panel panel-left">
+        <div class="card">
+          <div class="card-title">Draw Character</div>
+          <canvas id="gridCanvas"></canvas>
+          <div class="grid-tools">
+            <button class="btn-ghost btn-sm" id="btnClear">Clear</button>
+            <button class="btn-ghost btn-sm" id="btnErase">✏ Draw</button>
+            <button class="btn-ghost btn-sm" id="btnInvert">Invert</button>
           </div>
-          <div style="flex-shrink:0">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-align:center">Input Weights</div>
-            <canvas id="heatCanvas" width="80" height="80"></canvas>
-          </div>
-        </div>`;
-      setTimeout(()=>drawHeat(idx),5);
-    } else {
-      const o=idx,l=nn.labels[o];
-      const sm=acts.sm?(acts.sm[o]*100).toFixed(2):'—';
-      const bias=nn.bO[o].toFixed(4);
-      const chips=nn.wHO[o].map((w,h)=>{
-        const k=`${h}-${o}`;
-        if(nn.deleted.has(k))return`<span class="conn-chip del" onclick="openModalDirect(${h},${o})">H${h}:del</span>`;
-        return`<span class="conn-chip ${w>0?'pos':'neg'}" onclick="openModalDirect(${h},${o})" title="${w.toFixed(4)}">H${h}:${w>0?'+':''}${w.toFixed(2)}</span>`;
-      }).join('');
-      cont.innerHTML=`
-        <h4>Output Node '${l}'</h4>
-        <div class="info-stats">Confidence: <b>${sm}%</b> &nbsp; Bias: <b>${bias}</b>
-          <button class="btn-ghost btn-sm" style="margin-left:8px" onclick="editBias('out',${o})">Edit Bias</button>
         </div>
-        <div style="font-size:11px;color:var(--text3);margin-top:8px;margin-bottom:4px">← Hidden Connections</div>
-        <div class="conn-grid">${chips}</div>`;
-    }
-  }
-}
-function drawHeat(hidIdx){
-  const c=document.getElementById('heatCanvas');if(!c)return;
-  const ctx=c.getContext('2d');
-  const w=nn.wIH[hidIdx];
-  const mx=Math.max(...w.map(Math.abs),1e-6);
-  const CELL=5;
-  for(let i=0;i<GS*GS;i++){
-    const col=i%GS,row=Math.floor(i/GS),nw=w[i]/mx;
-    let r,g,b;
-    if(nw>0){r=20;g=Math.floor(40+nw*200);b=60;}
-    else{r=Math.floor(40+(-nw)*200);g=20;b=40;}
-    ctx.fillStyle=`rgb(${r},${g},${b})`;
-    ctx.fillRect(col*CELL,row*CELL,CELL,CELL);
-  }
-}
-function editBias(type,idx){
-  const cur=(type==='hid'?nn.bH[idx]:nn.bO[idx]).toFixed(4);
-  const v=prompt(`Edit bias for ${type==='hid'?'Hidden #'+idx:"Output '"+nn.labels[idx]+"'"}:`,cur);
-  if(v!==null&&!isNaN(+v)){
-    if(type==='hid') nn.bH[idx]=+v; else nn.bO[idx]=+v;
-    runPred();
-  }
-}
-function openModalDirect(h,o){openModal({h,o});}
-
-// ═══════════════════════════════════════════════
-// WEIGHT MODAL
-// ═══════════════════════════════════════════════
-function openModal(conn){
-  modalConn=conn;
-  const{h,o}=conn;
-  const l=nn.labels[o],w=nn.wHO[o][h];
-  const del=nn.deleted.has(`${h}-${o}`);
-  document.getElementById('wModalInfo').textContent=`Hidden Node #${h} → Output '${l}'${del?' [DELETED]':''}`;
-  document.getElementById('wVal').value=w.toFixed(4);
-  document.getElementById('btnWDel').textContent=del?'Restore':'Delete';
-  document.getElementById('wModal').classList.add('open');
-}
-function closeModal(){document.getElementById('wModal').classList.remove('open');}
-document.getElementById('btnWSave').onclick=()=>{
-  if(!modalConn)return;
-  const{h,o}=modalConn,v=+document.getElementById('wVal').value;
-  if(!isNaN(v)){nn.wHO[o][h]=v;nn.deleted.delete(`${h}-${o}`);runPred();updateInfo();}
-  closeModal();
-};
-document.getElementById('btnWRand').onclick=()=>{
-  if(!modalConn)return;
-  const{h,o}=modalConn;
-  nn.wHO[o][h]=(Math.random()-.5)*.5;
-  nn.deleted.delete(`${h}-${o}`);
-  document.getElementById('wVal').value=nn.wHO[o][h].toFixed(4);
-  runPred();
-};
-document.getElementById('btnWDel').onclick=()=>{
-  if(!modalConn)return;
-  const{h,o}=modalConn,k=`${h}-${o}`;
-  nn.deleted.has(k)?nn.deleted.delete(k):nn.deleted.add(k);
-  selConn=null;runPred();closeModal();
-};
-document.getElementById('btnWClose').onclick=closeModal;
-document.getElementById('wModal').addEventListener('click',e=>{if(e.target===document.getElementById('wModal'))closeModal();});
-
-// ═══════════════════════════════════════════════
-// ACTIVATION MINI-CHART
-// ═══════════════════════════════════════════════
-const aCvs=document.getElementById('activCanvas');
-const aCtx=aCvs.getContext('2d');
-function drawActiv(){
-  const W=aCvs.offsetWidth||240,H=50;
-  aCvs.width=W;aCvs.height=H;
-  aCtx.fillStyle='#0a0a18';aCtx.fillRect(0,0,W,H);
-  if(!acts.hid)return;
-  const n=acts.hid.length,bW=(W-4)/n;
-  for(let i=0;i<n;i++){
-    const v=acts.hid[i],x=2+i*bW,bH=v*(H-8);
-    const isSel=selNode&&selNode.type==='hid'&&selNode.idx===i;
-    aCtx.fillStyle=isSel?'#7c6aff':`rgba(70,50,200,${.35+v*.65})`;
-    aCtx.fillRect(x,H-4-bH,bW-.8,bH);
-  }
-  aCtx.fillStyle='#2a2a48';aCtx.font='9px JetBrains Mono';
-  aCtx.textAlign='left';aCtx.fillText('hidden activations',3,H-1);
-}
-
-// ═══════════════════════════════════════════════
-// TRAINING
-// ═══════════════════════════════════════════════
-function lr(){return+document.getElementById('lrSlider').value;}
-document.getElementById('lrSlider').oninput=function(){
-  document.getElementById('lrVal').textContent=parseFloat(this.value).toFixed(3);
-};
-
-document.getElementById('btnAdd').onclick=()=>{
-  const ch=document.getElementById('trainChar').value.trim();
-  if(!ch){return alert('Enter a character!');}
-  const inp=[...grid];
-  const ex=trainingData.find(d=>d.label===ch);
-  if(ex) ex.inputs.push(inp); else trainingData.push({label:ch,inputs:[inp]});
-  const loss=nn.train(inp,ch,lr());
-  pushLoss(loss);
-  updateUI(); runPred();
-  status(`Added '${ch}' — loss: ${loss.toFixed(4)}`);
-};
-
-document.getElementById('btnTrainOne').onclick=()=>{
-  const ch=document.getElementById('trainChar').value.trim();
-  if(!ch)return;
-  const loss=nn.train([...grid],ch,lr());
-  pushLoss(loss);runPred();
-  status(`Trained '${ch}' — loss: ${loss.toFixed(4)}`);
-};
-
-document.getElementById('btnTrainAll').onclick=async()=>{
-  if(!trainingData.length)return alert('No training data!');
-  const ep=+document.getElementById('epochsIn').value||200;
-  isTraining=true;
-  document.getElementById('btnTrainAll').disabled=true;
-  document.getElementById('btnAdd').disabled=true;
-
-  const flat=[];
-  for(const{label,inputs}of trainingData)for(const inp of inputs)flat.push({inp,label});
-
-  let tot=0,ct=0;
-  for(let e=0;e<ep;e++){
-    for(let i=flat.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[flat[i],flat[j]]=[flat[j],flat[i]];}
-    let el=0;
-    for(const{inp,label}of flat) el+=nn.train(inp,label,lr());
-    el/=flat.length; pushLoss(el); tot+=el; ct++;
-    if(e%15===0||e===ep-1){
-      document.getElementById('trainStatus').textContent=`Epoch ${e+1}/${ep} | Loss: ${el.toFixed(4)}`;
-      document.getElementById('lossDisp').textContent=`Loss: ${el.toFixed(4)}`;
-      runPred(); drawLossChart(); await sleep(0);
-    }
-  }
-  isTraining=false;
-  document.getElementById('btnTrainAll').disabled=false;
-  document.getElementById('btnAdd').disabled=false;
-  status(`Done! Avg loss: ${(tot/ct).toFixed(4)}`);
-  runPred();
-};
-
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-function pushLoss(l){
-  lossHist.push(l);
-  if(lossHist.length>300)lossHist.shift();
-  document.getElementById('lossDisp').textContent=`Loss: ${l.toFixed(4)}`;
-  drawLossChart();
-}
-
-// ═══════════════════════════════════════════════
-// LOSS CHART
-// ═══════════════════════════════════════════════
-function drawLossChart(){
-  const c=document.getElementById('lossCanvas');
-  const ctx=c.getContext('2d'),W=c.width,H=c.height;
-  ctx.fillStyle='#0a0a18';ctx.fillRect(0,0,W,H);
-  if(lossHist.length<2)return;
-  const mx=Math.max(...lossHist,.01);
-  // Gradient fill
-  const grad=ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,'rgba(124,106,255,.4)');
-  grad.addColorStop(1,'rgba(124,106,255,0)');
-  ctx.beginPath();
-  for(let i=0;i<lossHist.length;i++){
-    const x=(i/(lossHist.length-1))*W;
-    const y=H-(lossHist[i]/mx)*(H-4)-2;
-    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
-  }
-  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
-  ctx.fillStyle=grad;ctx.fill();
-  // Line
-  ctx.beginPath();
-  for(let i=0;i<lossHist.length;i++){
-    const x=(i/(lossHist.length-1))*W;
-    const y=H-(lossHist[i]/mx)*(H-4)-2;
-    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
-  }
-  ctx.strokeStyle='#7c6aff';ctx.lineWidth=1.5;ctx.stroke();
-  ctx.fillStyle='#2a2a48';ctx.font='9px JetBrains Mono';
-  ctx.textAlign='right';ctx.fillText(mx.toFixed(3),W-2,10);
-  ctx.textAlign='left';ctx.fillText(`${lossHist.length} steps`,2,H-2);
-}
-
-// ═══════════════════════════════════════════════
-// UI
-// ═══════════════════════════════════════════════
-function status(msg){
-  document.getElementById('globalStatus').textContent=msg;
-  setTimeout(()=>{if(document.getElementById('globalStatus').textContent===msg)document.getElementById('globalStatus').textContent='';},4000);
-}
-function showConfirm(msg, onYes){
-  const ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center';
-  ov.innerHTML=`<div style="background:#14142b;border:1px solid #4a4a8a;border-radius:10px;padding:22px 24px;max-width:310px;font-family:JetBrains Mono,monospace;box-shadow:0 20px 60px rgba(0,0,0,.6)">
-    <p style="color:#c8c8e8;font-size:12px;margin-bottom:18px;line-height:1.7">${msg}</p>
-    <div style="display:flex;gap:8px">
-      <button id="_cfmY" style="flex:1;background:#c0394a;color:#fff;border:none;border-radius:5px;padding:8px 12px;cursor:pointer;font-family:inherit;font-size:12px">Confirm</button>
-      <button id="_cfmN" style="flex:1;background:#1e1e40;color:#b0b0d0;border:1px solid #3a3a6a;border-radius:5px;padding:8px 12px;cursor:pointer;font-family:inherit;font-size:12px">Cancel</button>
-    </div></div>`;
-  document.body.appendChild(ov);
-  const rm=()=>document.body.removeChild(ov);
-  ov.querySelector('#_cfmY').onclick=()=>{rm();onYes();};
-  ov.querySelector('#_cfmN').onclick=rm;
-  ov.onclick=e=>{if(e.target===ov)rm();};
-}
-function updateUI(){
-  document.getElementById('hdrOut').textContent=nn.outSz;
-  document.getElementById('outputCount')&&(document.getElementById('outputCount').textContent=nn.outSz);
-  const list=document.getElementById('tdList');
-  const total=trainingData.reduce((s,d)=>s+d.inputs.length,0);
-  document.getElementById('tdCount').textContent=`${total} example${total!==1?'s':''}`;
-  if(!trainingData.length){
-    list.innerHTML='<div class="no-pred" style="padding:6px 0;font-size:11px">No examples yet.</div>';
-  } else {
-    list.innerHTML=trainingData.map((d,i)=>`
-      <div class="td-item">
-        <div class="td-glyph">${d.label}</div>
-        <div class="td-count">${d.inputs.length} sample${d.inputs.length!==1?'s':''}</div>
-        <button class="btn-ghost btn-sm" onclick="previewTD(${i})" title="Preview last sample">👁</button>
-        <button class="btn-danger btn-sm" onclick="deleteTD(${i})">✕</button>
-      </div>`).join('');
-  }
-  const ch=document.getElementById('trainChar').value.trim();
-  document.getElementById('btnTrainOne').disabled=!ch;
-  document.getElementById('btnTrainAll').disabled=!trainingData.length;
-}
-function previewTD(i){
-  const last=trainingData[i].inputs[trainingData[i].inputs.length-1];
-  grid=[...last]; drawGrid(); schedulePred();
-}
-function deleteTD(i){
-  const label=trainingData[i].label;
-  trainingData.splice(i,1);
-  if(!trainingData.some(d=>d.label===label)){
-    const oIdx=nn.labels.indexOf(label);
-    if(oIdx>=0){
-      nn.labels.splice(oIdx,1);
-      nn.wHO.splice(oIdx,1);
-      nn.bO.splice(oIdx,1);
-      nn.outSz--;
-      const nd=new Set();
-      for(const k of nn.deleted){
-        const [h,o]=k.split('-').map(Number);
-        if(o===oIdx) continue;
-        nd.add(o>oIdx?`${h}-${o-1}`:k);
+        <div class="card">
+          <div class="card-title">Live Prediction</div>
+          <div id="predDisplay">
+            <div class="no-pred">Train the network first, <br>then draw to predict. </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Hidden Activations</div>
+          <canvas id="activCanvas"></canvas>
+        </div>
+      </div>
+      <!-- MIDDLE -->
+      <div class="panel-mid">
+        <div class="net-toolbar">
+          <span class="net-title">Network Visualization</span>
+          <label>
+            <input type="checkbox" id="chkAll"> Show All Connections </label>
+          <label>
+            <input type="checkbox" id="chkHeat" checked> Weight Heatmap </label>
+          <span class="net-stat">Click nodes or lines to inspect · <b>Green</b>=positive · <b>Red</b>=negative </span>
+          <span id="trainStatus"></span>
+        </div>
+        <div class="net-canvas-wrap" id="netWrap">
+          <canvas id="netCanvas"></canvas>
+        </div>
+        <div class="info-panel" id="infoPanel">
+          <div id="infoContent"></div>
+        </div>
+      </div>
+      <!-- RIGHT -->
+      <div class="panel panel-right">
+        <div class="card">
+          <div class="card-title">Train</div>
+          <div class="row">
+            <label>Character:</label>
+            <input type="text" id="trainChar" maxlength="1" placeholder="A" style="width:44px;text-align:center;font-size:20px;font-weight:700">
+            <button class="btn-accent" id="btnAdd">Add</button>
+          </div>
+          <div class="row">
+            <label>LR:</label>
+            <input type="range" id="lrSlider" min="0.001" max="0.5" step="0.001" value="0.05" style="flex:1">
+            <span id="lrVal" style="font-size:11px;width:36px;text-align:right;color:var(--text2)">0.050</span>
+          </div>
+          <div class="btn-row" style="margin-top:4px">
+            <button class="btn-ghost btn-full" id="btnTrainOne" disabled>Train 1×</button>
+          </div>
+          <div class="sep" style="margin-top:8px"></div>
+          <div class="row" style="margin-top:6px">
+            <label>Epochs:</label>
+            <input type="number" id="epochsIn" value="200" min="1" max="50000" style="width:68px">
+            <button class="btn-accent" id="btnTrainAll" disabled>Train All</button>
+          </div>
+          <div id="lossDisp" style="font-size:11px;color:var(--text3);margin-top:6px">Loss: —</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Loss Chart</div>
+          <canvas id="lossCanvas" width="240" height="72"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Training Data</div>
+          <div class="td-list" id="tdList">
+            <div class="no-pred" style="padding:6px 0">No examples yet.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+            <button class="btn-danger btn-sm" id="btnClearData">Clear All</button>
+            <span class="badge" id="tdCount">0 examples</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Network Controls</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <button class="btn-ghost btn-full" id="btnRandAll">Randomize All Weights</button>
+            <button class="btn-ghost btn-full" id="btnRandIH">Randomize Input → Hidden</button>
+            <button class="btn-ghost btn-full" id="btnRandHO">Randomize Hidden → Output</button>
+            <button class="btn-danger btn-full" id="btnReset">⚠ Reset Network</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Save / Load</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button class="btn-teal btn-full" id="btnSave">💾 Save Session</button>
+            <button class="btn-ghost btn-full" id="btnLoad">📂 Load Session</button>
+            <input type="file" id="fileIn" accept=".json" style="display:none">
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- WEIGHT MODAL -->
+    <div class="modal" id="wModal">
+      <div class="modal-box">
+        <h3>⚡ Connection Editor</h3>
+        <p id="wModalInfo">—</p>
+        <div class="row">
+          <label>Weight:</label>
+          <input type="number" id="wVal" step="0.0001">
+        </div>
+        <div class="modal-acts">
+          <button class="btn-accent" id="btnWSave">Save</button>
+          <button class="btn-ghost" id="btnWRand">Randomize</button>
+          <button class="btn-danger" id="btnWDel">Delete</button>
+          <button class="btn-ghost" id="btnWClose">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      'use strict';
+      // ═══════════════════════════════════════════════
+      // NEURAL NETWORK
+      // ═══════════════════════════════════════════════
+      class NN {
+        constructor(inSz = 256, hidSz = 24) {
+          this.inSz = inSz;
+          this.hidSz = hidSz;
+          this.labels = [];
+          this.outSz = 0;
+          this.wIH = [];
+          this.wHO = [];
+          this.bH = [];
+          this.bO = [];
+          this.deleted = new Set();
+          this._initIH();
+        }
+        _initIH() {
+          this.wIH = [];
+          this.bH = [];
+          for (let h = 0; h < this.hidSz; h++) {
+            this.wIH[h] = Array.from({
+              length: this.inSz
+            }, () => (Math.random() - .5) * .25);
+            this.bH[h] = (Math.random() - .5) * .1;
+          }
+        }
+        addOut(label) {
+          if (this.labels.includes(label)) return false;
+          this.labels.push(label);
+          this.outSz++;
+          this.wHO.push(Array.from({
+            length: this.hidSz
+          }, () => (Math.random() - .5) * .25));
+          this.bO.push(0);
+          return true;
+        }
+        sig(x) {
+          return 1 / (1 + Math.exp(-Math.max(-50, Math.min(50, x))))
+        }
+        forward(inp) {
+          const hid = new Array(this.hidSz);
+          for (let h = 0; h < this.hidSz; h++) {
+            let s = this.bH[h];
+            for (let i = 0; i < this.inSz; i++) s += inp[i] * this.wIH[h][i];
+            hid[h] = this.sig(s);
+          }
+          if (!this.outSz) return {
+            hid,
+            out: [],
+            sm: []
+          };
+          const raw = new Array(this.outSz);
+          for (let o = 0; o < this.outSz; o++) {
+            let s = this.bO[o];
+            for (let h = 0; h < this.hidSz; h++)
+              if (!this.deleted.has(`${h}-${o}`)) s += hid[h] * this.wHO[o][h];
+            raw[o] = s;
+          }
+          const mx = Math.max(...raw);
+          const ex = raw.map(x => Math.exp(x - mx));
+          const se = ex.reduce((a, b) => a + b, 0);
+          const sm = ex.map(x => x / se);
+          const out = raw.map(x => this.sig(x));
+          return {
+            hid,
+            out,
+            sm
+          };
+        }
+        train(inp, label, lr = 0.05) {
+          this.addOut(label);
+          const {
+            hid,
+            out
+          } = this.forward(inp);
+          const ti = this.labels.indexOf(label);
+          const tgt = new Array(this.outSz).fill(0);
+          tgt[ti] = 1;
+          const odelta = out.map((o, i) => (tgt[i] - o) * o * (1 - o));
+          const herr = new Array(this.hidSz).fill(0);
+          for (let h = 0; h < this.hidSz; h++)
+            for (let o = 0; o < this.outSz; o++)
+              if (!this.deleted.has(`${h}-${o}`)) herr[h] += odelta[o] * this.wHO[o][h];
+          const hdelta = herr.map((e, i) => e * hid[i] * (1 - hid[i]));
+          for (let o = 0; o < this.outSz; o++) {
+            for (let h = 0; h < this.hidSz; h++)
+              if (!this.deleted.has(`${h}-${o}`)) this.wHO[o][h] += lr * odelta[o] * hid[h];
+            this.bO[o] += lr * odelta[o];
+          }
+          for (let h = 0; h < this.hidSz; h++) {
+            for (let i = 0; i < this.inSz; i++) this.wIH[h][i] += lr * hdelta[h] * inp[i];
+            this.bH[h] += lr * hdelta[h];
+          }
+          return tgt.reduce((s, t, i) => s + (t - out[i]) ** 2, 0) / this.outSz;
+        }
+        randWeights(layer) {
+          if (layer === 'IH' || layer === 'all') this._initIH();
+          if (layer === 'HO' || layer === 'all')
+            for (let o = 0; o < this.outSz; o++) {
+              this.wHO[o] = Array.from({
+                length: this.hidSz
+              }, () => (Math.random() - .5) * .25);
+              this.bO[o] = 0;
+            }
+        }
+        toJSON() {
+          return {
+            v: 1,
+            inSz: this.inSz,
+            hidSz: this.hidSz,
+            labels: this.labels,
+            wIH: this.wIH,
+            wHO: this.wHO,
+            bH: this.bH,
+            bO: this.bO,
+            deleted: [...this.deleted]
+          };
+        }
+        static fromJSON(d) {
+          const n = new NN(d.inSz, d.hidSz);
+          n.labels = d.labels;
+          n.outSz = d.labels.length;
+          n.wIH = d.wIH;
+          n.wHO = d.wHO;
+          n.bH = d.bH;
+          n.bO = d.bO;
+          n.deleted = new Set(d.deleted || []);
+          return n;
+        }
       }
-      nn.deleted=nd;
-      if(selNode&&selNode.type==='out'&&selNode.idx>=nn.outSz) selNode=null;
-      if(selConn&&selConn.o>=nn.outSz) selConn=null;
-    }
-  }
-  updateUI(); updateInfo(); runPred();
-}
+      // ═══════════════════════════════════════════════
+      // STATE
+      // ═══════════════════════════════════════════════
+      const GS = 16,
+        CS = 16;
+      let nn = new NN(256, 24);
+      let grid = new Array(GS * GS).fill(0);
+      let trainingData = []; // [{label,inputs:[[],...]}]
+      let lossHist = [];
+      let acts = {
+        hid: null,
+        out: null,
+        sm: null
+      };
+      let drawing = false,
+        erasing = false;
+      let selNode = null; // {type:'hid'|'out',idx}
+      let selConn = null; // {h,o}
+      let hovNode = null,
+        hovConn = null;
+      let modalConn = null;
+      let predTimer = null;
+      let isTraining = false;
+      // ═══════════════════════════════════════════════
+      // GRID
+      // ═══════════════════════════════════════════════
+      const gCvs = document.getElementById('gridCanvas');
+      gCvs.width = GS * CS;
+      gCvs.height = GS * CS;
+      gCvs.style.width = (GS * CS) + 'px';
+      gCvs.style.height = (GS * CS) + 'px';
+      const gCtx = gCvs.getContext('2d');
 
-// ═══════════════════════════════════════════════
-// GRID CONTROLS
-// ═══════════════════════════════════════════════
-document.getElementById('btnClear').onclick=()=>{grid.fill(0);drawGrid();schedulePred();};
-document.getElementById('btnErase').onclick=function(){
-  erasing=!erasing;
-  this.textContent=erasing?'🗑 Erase':'✏ Draw';
-  this.style.background=erasing?'#3a1a25':'';
-};
-document.getElementById('btnInvert').onclick=()=>{
-  for(let i=0;i<grid.length;i++)grid[i]=grid[i]?0:1;
-  drawGrid();schedulePred();
-};
-document.getElementById('trainChar').oninput=updateUI;
+      function drawGrid() {
+        gCtx.fillStyle = '#0a0a18';
+        gCtx.fillRect(0, 0, gCvs.width, gCvs.height);
+        gCtx.strokeStyle = '#1e1e3a';
+        gCtx.lineWidth = 1;
+        for (let i = 0; i <= GS; i++) {
+          gCtx.beginPath();
+          gCtx.moveTo(i * CS, 0);
+          gCtx.lineTo(i * CS, gCvs.height);
+          gCtx.stroke();
+          gCtx.beginPath();
+          gCtx.moveTo(0, i * CS);
+          gCtx.lineTo(gCvs.width, i * CS);
+          gCtx.stroke();
+        }
+        for (let i = 0; i < grid.length; i++)
+          if (grid[i]) drawCell(i);
+      }
 
-// ═══════════════════════════════════════════════
-// NET CONTROLS
-// ═══════════════════════════════════════════════
-document.getElementById('btnRandAll').onclick=()=>{
-  showConfirm('Randomize ALL weights?<br>Training progress will be lost.',()=>{
-    nn.randWeights('all');runPred();status('All weights randomized');
-  });
-};
-document.getElementById('btnRandIH').onclick=()=>{
-  showConfirm('Randomize Input → Hidden weights?',()=>{
-    nn.randWeights('IH');runPred();status('Input→Hidden randomized');
-  });
-};
-document.getElementById('btnRandHO').onclick=()=>{
-  showConfirm('Randomize Hidden → Output weights?',()=>{
-    nn.randWeights('HO');runPred();status('Hidden→Output randomized');
-  });
-};
-document.getElementById('btnReset').onclick=()=>{
-  showConfirm('Reset entire network and clear all training data?<br>This cannot be undone.',()=>{
-    nn=new NN(256,24);trainingData=[];lossHist=[];
-    acts={hid:null,out:null,sm:null};selNode=null;selConn=null;
-    document.getElementById('infoPanel').classList.remove('open');
-    grid.fill(0);drawGrid();updateUI();updateInfo();runPred();drawLossChart();
-    status('Network reset!');
-  });
-};
-document.getElementById('chkAll').onchange=drawNet;
-document.getElementById('chkHeat').onchange=drawNet;
-document.getElementById('btnClearData').onclick=()=>{
-  showConfirm('Clear all training data?<br>Network weights are kept.',()=>{
-    trainingData=[];updateUI();status('Training data cleared');
-  });
-};
+      function drawCell(idx) {
+        const c = idx % GS,
+          r = Math.floor(idx / GS);
+        gCtx.fillStyle = grid[idx] ? '#d0c0ff' : '#0a0a18';
+        gCtx.fillRect(c * CS + 1, r * CS + 1, CS - 2, CS - 2);
+      }
 
-// ═══════════════════════════════════════════════
-// SAVE / LOAD
-// ═══════════════════════════════════════════════
-document.getElementById('btnSave').onclick=()=>{
-  const data={v:1,created:new Date().toISOString(),
-    network:nn.toJSON(),trainingData,lossHist:lossHist.slice(-100)};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=`nn-session-${Date.now()}.json`;a.click();
-  URL.revokeObjectURL(url);status('Session saved!');
-};
-document.getElementById('btnLoad').onclick=()=>document.getElementById('fileIn').click();
-document.getElementById('fileIn').onchange=e=>{
-  const f=e.target.files[0];if(!f)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const d=JSON.parse(ev.target.result);
-      if(d.v!==1)throw new Error('Unknown version');
-      nn=NN.fromJSON(d.network);
-      trainingData=d.trainingData||[];
-      lossHist=d.lossHist||[];
-      selNode=null;selConn=null;
-      acts={hid:null,out:null,sm:null};
-      grid.fill(0);drawGrid();updateUI();runPred();drawLossChart();
-      status(`Loaded! ${nn.outSz} output nodes, ${trainingData.length} classes`);
-    }catch(err){alert('Load failed: '+err.message);}
-  };
-  reader.readAsText(f);
-  e.target.value='';
-};
+      function cellAt(e) {
+        const rect = gCvs.getBoundingClientRect();
+        const c = Math.floor((e.clientX - rect.left) / CS);
+        const r = Math.floor((e.clientY - rect.top) / CS);
+        if (c < 0 || c >= GS || r < 0 || r >= GS) return -1;
+        return r * GS + c;
+      }
 
-// ═══════════════════════════════════════════════
-// RESIZE
-// ═══════════════════════════════════════════════
-window.addEventListener('resize',()=>{resizeNet();drawNet();drawActiv();});
+      function setCell(idx, v) {
+        if (idx < 0 || idx >= grid.length || grid[idx] === v) return;
+        grid[idx] = v;
+        drawCell(idx);
+        schedulePred();
+      }
+      gCvs.addEventListener('mousedown', e => {
+        e.preventDefault();
+        drawing = true;
+        erasing = (e.button === 2 || e.ctrlKey) || erasing;
+        const i = cellAt(e);
+        if (i >= 0) setCell(i, erasing ? 0 : 1);
+      });
+      gCvs.addEventListener('mousemove', e => {
+        if (drawing) {
+          const i = cellAt(e);
+          if (i >= 0) setCell(i, erasing ? 0 : 1);
+        }
+      });
+      gCvs.addEventListener('mouseup', () => drawing = false);
+      gCvs.addEventListener('mouseleave', () => drawing = false);
+      gCvs.addEventListener('contextmenu', e => e.preventDefault());
+      // ═══════════════════════════════════════════════
+      // PREDICTION
+      // ═══════════════════════════════════════════════
+      function schedulePred() {
+        clearTimeout(predTimer);
+        predTimer = setTimeout(runPred, 55);
+      }
 
-// ═══════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════
-drawGrid();
-resizeNet();
-drawNet();
-drawActiv();
-drawLossChart();
-updateUI();
+      function runPred() {
+        const result = nn.forward(grid);
+        acts = result;
+        const el = document.getElementById('predDisplay');
+        if (!nn.outSz) {
+          el.innerHTML = ' < div class = "no-pred" > Train the network first, < br > then draw to predict. < /div>';
+        } else {
+          const sorted = result.sm.map((p, i) => ({
+            p,
+            i,
+            l: nn.labels[i]
+          })).sort((a, b) => b.p - a.p).slice(0, 3);
+          el.innerHTML = sorted.map((x, rank) => `
+      
+																															<div class="pred-row">
+																																<div class="pred-glyph ${rank?'dim':''}">${x.l}</div>
+																																<div class="pred-bar-bg">
+																																	<div class="pred-bar ${rank?'low':'top'}" style="width:${(x.p*100).toFixed(1)}%"></div>
+																																</div>
+																																<div class="pred-pct">${(x.p*100).toFixed(1)}%</div>
+																															</div>`).join('');
+        }
+        drawNet();
+        drawActiv();
+      }
+      // ═══════════════════════════════════════════════
+      // NETWORK CANVAS
+      // ═══════════════════════════════════════════════
+      const nCvs = document.getElementById('netCanvas');
+      const nCtx = nCvs.getContext('2d');
+      const nWrap = document.getElementById('netWrap');
 
-// Demo hint
-status('← Draw a character and click Add to begin training');
+      function layout() {
+        const W = nCvs.width,
+          H = nCvs.height;
+        const hc = nn.hidSz,
+          oc = nn.outSz;
+        const PAD = 50;
+        const hSp = hc > 1 ? Math.min(28, (H - PAD * 2) / (hc - 1)) : 0;
+        const hTH = hSp * (hc - 1);
+        const hSY = (H - hTH) / 2;
+        const oSp = oc > 1 ? Math.min(28, (H - PAD * 2) / (oc - 1)) : 0;
+        const oTH = oc > 1 ? oSp * (oc - 1) : 0;
+        const oSY = oc ? (H - oTH) / 2 : H / 2;
+        const hX = W * .38,
+          oX = W * .82;
+        const THUMB = 80,
+          tX = W * .04,
+          tY = (H - THUMB) / 2;
+        return {
+          W,
+          H,
+          hc,
+          oc,
+          hSp,
+          hSY,
+          oSp,
+          oSY,
+          hX,
+          oX,
+          THUMB,
+          tX,
+          tY,
+          rH: 9,
+          rO: 14
+        };
+      }
 
-</script>
-</body>
+      function hPos(i, L) {
+        return {
+          x: L.hX,
+          y: L.hSY + i * L.hSp
+        }
+      }
+
+      function oPos(i, L) {
+        return {
+          x: L.oX,
+          y: L.oSY + i * L.oSp
+        }
+      }
+
+      function resizeNet() {
+        const W = nWrap.clientWidth || 700;
+        const hc = nn.hidSz,
+          oc = nn.outSz;
+        const minH = Math.max(hc * 26 + 100, oc > 0 ? oc * 26 + 100 : 200, 380);
+        const H = Math.max(minH, nWrap.clientHeight || 380);
+        nCvs.width = W;
+        nCvs.height = H;
+        nCvs.style.width = W + 'px';
+        nCvs.style.height = H + 'px';
+      }
+
+      function drawInputThumb(ctx, L) {
+        const {
+          tX,
+          tY,
+          THUMB,
+          hX
+        } = L;
+        const CELL = THUMB / GS;
+        ctx.fillStyle = '#0a0a18';
+        ctx.fillRect(tX, tY, THUMB, THUMB);
+        const showHeat = document.getElementById('chkHeat').checked && selNode && selNode.type === 'hid';
+        if (showHeat) {
+          const w = nn.wIH[selNode.idx];
+          const mx = Math.max(...w.map(Math.abs), 1e-6);
+          for (let i = 0; i < GS * GS; i++) {
+            const col = i % GS,
+              row = Math.floor(i / GS);
+            const nw = w[i] / mx;
+            let r, g, b;
+            if (nw > 0) {
+              r = 20;
+              g = Math.floor(40 + nw * 200);
+              b = 60;
+            } else {
+              r = Math.floor(40 + (-nw) * 200);
+              g = 20;
+              b = 40;
+            }
+            const a = grid[i] ? 1 : .65;
+            ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+            ctx.fillRect(tX + col * CELL + .5, tY + row * CELL + .5, CELL - .5, CELL - .5);
+          }
+        } else {
+          for (let i = 0; i < GS * GS; i++) {
+            if (grid[i]) {
+              const col = i % GS,
+                row = Math.floor(i / GS);
+              ctx.fillStyle = '#b8a8ff';
+              ctx.fillRect(tX + col * CELL + .5, tY + row * CELL + .5, CELL - .5, CELL - .5);
+            }
+          }
+        }
+        ctx.strokeStyle = '#3a3a6a';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tX, tY, THUMB, THUMB);
+        ctx.fillStyle = '#3a3a58';
+        ctx.font = '10px JetBrains Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText('INPUT 16×16', tX + THUMB / 2, tY + THUMB + 13);
+        // Arrow
+        const ay = tY + THUMB / 2;
+        ctx.strokeStyle = '#2a2a50';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(tX + THUMB + 3, ay);
+        ctx.lineTo(hX - L.rH - 8, ay);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#2a2a50';
+        ctx.beginPath();
+        ctx.moveTo(hX - L.rH - 8, ay - 4);
+        ctx.lineTo(hX - L.rH - 1, ay);
+        ctx.lineTo(hX - L.rH - 8, ay + 4);
+        ctx.fill();
+        if (selNode && selNode.type === 'hid') {
+          ctx.fillStyle = '#4a4a7a';
+          ctx.font = '9px JetBrains Mono';
+          ctx.textAlign = 'center';
+          ctx.fillText('Weight Heatmap', tX + THUMB / 2, tY - 4);
+        }
+      }
+
+      function wColor(w, a) {
+        return w > 0 ? `rgba(46,204,113,${a})` : `rgba(231,76,60,${a})`;
+      }
+
+      function drawNet() {
+        resizeNet();
+        const ctx = nCtx;
+        const L = layout();
+        ctx.clearRect(0, 0, L.W, L.H);
+        ctx.fillStyle = '#070711';
+        ctx.fillRect(0, 0, L.W, L.H);
+        drawInputThumb(ctx, L);
+        const showAll = document.getElementById('chkAll').checked;
+        // Connections
+        for (let h = 0; h < L.hc; h++) {
+          for (let o = 0; o < L.oc; o++) {
+            const key = `${h}-${o}`;
+            if (nn.deleted.has(key)) continue;
+            const w = nn.wHO[o][h];
+            const mag = Math.abs(w);
+            const isSelH = selNode && selNode.type === 'hid' && selNode.idx === h;
+            const isSelO = selNode && selNode.type === 'out' && selNode.idx === o;
+            const isSC = selConn && selConn.h === h && selConn.o === o;
+            const isHC = hovConn && hovConn.h === h && hovConn.o === o;
+            const hi = isSelH || isSelO || isSC;
+            if (!hi && !showAll && mag < 0.08) continue;
+            const hp = hPos(h, L),
+              op = oPos(o, L);
+            let alpha, lw;
+            if (isSC) {
+              alpha = 1;
+              lw = 2.5;
+            } else if (isHC) {
+              alpha = .9;
+              lw = 2;
+            } else if (hi) {
+              alpha = Math.min(1, .25 + mag * 2);
+              lw = Math.max(.5, mag * 2.2);
+            } else {
+              alpha = Math.min(.55, mag * 1.5);
+              lw = Math.max(.3, mag * 1.5);
+            }
+            ctx.beginPath();
+            ctx.moveTo(hp.x + L.rH, hp.y);
+            ctx.lineTo(op.x - L.rO, op.y);
+            ctx.strokeStyle = (isSC || isHC) ? 'rgba(255,255,255,.9)' : wColor(w, alpha);
+            ctx.lineWidth = lw;
+            ctx.stroke();
+          }
+        }
+        // Hidden nodes
+        ctx.textBaseline = 'middle';
+        for (let h = 0; h < L.hc; h++) {
+          const {
+            x,
+            y
+          } = hPos(h, L);
+          const act = acts.hid ? acts.hid[h] : 0;
+          const isSel = selNode && selNode.type === 'hid' && selNode.idx === h;
+          const isHov = hovNode && hovNode.type === 'hid' && hovNode.idx === h;
+          if (act > .5) {
+            ctx.shadowColor = `rgba(124,106,255,${act*.8})`;
+            ctx.shadowBlur = 10;
+          }
+          ctx.beginPath();
+          ctx.arc(x, y, L.rH, 0, Math.PI * 2);
+          ctx.fillStyle = isSel ? '#7c6aff' : `rgb(${Math.floor(act*60+15)},${Math.floor(act*40+10)},${Math.floor(act*200+30)})`;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = isSel ? '#fff' : (isHov ? '#9d94ff' : '#2a2a55');
+          ctx.lineWidth = isSel ? 2 : 1;
+          ctx.stroke();
+          ctx.fillStyle = '#404068';
+          ctx.font = '8px JetBrains Mono';
+          ctx.textAlign = 'center';
+          ctx.fillText(h, x, y);
+        }
+        // Output nodes
+        for (let o = 0; o < L.oc; o++) {
+          const {
+            x,
+            y
+          } = oPos(o, L);
+          const sm = acts.sm ? acts.sm[o] : 0;
+          const label = nn.labels[o];
+          const isSel = selNode && selNode.type === 'out' && selNode.idx === o;
+          const isHov = hovNode && hovNode.type === 'out' && hovNode.idx === o;
+          if (sm > .25) {
+            ctx.shadowColor = `rgba(0,229,176,${sm*.9})`;
+            ctx.shadowBlur = 14;
+          }
+          ctx.beginPath();
+          ctx.arc(x, y, L.rO, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(0,${Math.floor(50+sm*90)},${Math.floor(60+sm*80)},${.3+sm*.7})`;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = isSel ? '#fff' : (isHov ? '#00e5b0' : `rgba(0,229,176,${.2+sm*.8})`);
+          ctx.lineWidth = isSel ? 2.5 : (sm > .3 ? 2 : 1);
+          ctx.stroke();
+          ctx.fillStyle = sm > .45 ? '#fff' : (sm > .1 ? '#00e5b0' : '#3a7a68');
+          ctx.font = `bold 13px JetBrains Mono`;
+          ctx.textAlign = 'center';
+          ctx.fillText(label, x, y);
+          // Mini confidence bar
+          const bW = 28;
+          ctx.fillStyle = '#111128';
+          ctx.fillRect(x + L.rO + 4, y - 3, bW, 6);
+          ctx.fillStyle = '#00e5b0';
+          ctx.fillRect(x + L.rO + 4, y - 3, bW * sm, 6);
+        }
+        // Layer labels
+        ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#2a2a48';
+        ctx.font = '10px JetBrains Mono';
+        ctx.fillText('HIDDEN (24)', L.hX, L.H - 10);
+        if (L.oc) ctx.fillText('OUTPUT', L.oX, L.H - 10);
+        else {
+          ctx.fillStyle = '#1e1e38';
+          ctx.fillText('OUTPUT (train to add)', L.oX, L.H / 2 + 30);
+        }
+      }
+      // ═══════════════════════════════════════════════
+      // NET MOUSE EVENTS
+      // ═══════════════════════════════════════════════
+      function mp(e) {
+        const r = nCvs.getBoundingClientRect();
+        return {
+          x: (e.clientX - r.left) * (nCvs.width / r.width),
+          y: (e.clientY - r.top) * (nCvs.height / r.height)
+        };
+      }
+
+      function nodeAt(x, y, L) {
+        for (let h = 0; h < L.hc; h++) {
+          const p = hPos(h, L);
+          if ((x - p.x) ** 2 + (y - p.y) ** 2 <= (L.rH + 5) ** 2) return {
+            type: 'hid',
+            idx: h
+          };
+        }
+        for (let o = 0; o < L.oc; o++) {
+          const p = oPos(o, L);
+          if ((x - p.x) ** 2 + (y - p.y) ** 2 <= (L.rO + 5) ** 2) return {
+            type: 'out',
+            idx: o
+          };
+        }
+        return null;
+      }
+
+      function connAt(x, y, L) {
+        const THR = 7;
+        let best = null,
+          bd = THR;
+        for (let h = 0; h < L.hc; h++)
+          for (let o = 0; o < L.oc; o++) {
+            if (nn.deleted.has(`${h}-${o}`)) continue;
+            const hp = hPos(h, L),
+              op = oPos(o, L);
+            const x1 = hp.x + L.rH,
+              y1 = hp.y,
+              x2 = op.x - L.rO,
+              y2 = op.y;
+            const dx = x2 - x1,
+              dy = y2 - y1,
+              lsq = dx * dx + dy * dy;
+            let t = lsq ? ((x - x1) * dx + (y - y1) * dy) / lsq : 0;
+            t = Math.max(0, Math.min(1, t));
+            const d = Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+            if (d < bd) {
+              bd = d;
+              best = {
+                h,
+                o
+              };
+            }
+          }
+        return best;
+      }
+      nCvs.addEventListener('click', e => {
+        const {
+          x,
+          y
+        } = mp(e);
+        const L = layout();
+        const nd = nodeAt(x, y, L);
+        if (nd) {
+          selNode = (selNode && selNode.type === nd.type && selNode.idx === nd.idx) ? null : nd;
+          selConn = null;
+          updateInfo();
+          drawNet();
+          return;
+        }
+        const cn = connAt(x, y, L);
+        if (cn) {
+          selConn = cn;
+          selNode = null;
+          openModal(cn);
+          updateInfo();
+          drawNet();
+          return;
+        }
+        selNode = null;
+        selConn = null;
+        updateInfo();
+        drawNet();
+      });
+      nCvs.addEventListener('mousemove', e => {
+        const {
+          x,
+          y
+        } = mp(e);
+        const L = layout();
+        const nd = nodeAt(x, y, L);
+        const cn = nd ? null : connAt(x, y, L);
+        const ch = JSON.stringify(hovNode) !== JSON.stringify(nd) || JSON.stringify(hovConn) !== JSON.stringify(cn);
+        hovNode = nd;
+        hovConn = cn;
+        nCvs.style.cursor = (nd || cn) ? 'pointer' : 'default';
+        if (ch) drawNet();
+      });
+      // ═══════════════════════════════════════════════
+      // INFO PANEL
+      // ═══════════════════════════════════════════════
+      function updateInfo() {
+        const panel = document.getElementById('infoPanel');
+        const cont = document.getElementById('infoContent');
+        if (!selNode && !selConn) {
+          panel.classList.remove('open');
+          return;
+        }
+        panel.classList.add('open');
+        if (selNode) {
+          const {
+            type,
+            idx
+          } = selNode;
+          if (type === 'hid') {
+            const act = acts.hid ? acts.hid[idx].toFixed(4) : '—';
+            const bias = nn.bH[idx].toFixed(4);
+            const chips = nn.labels.map((l, o) => {
+              const k = `${idx}-${o}`;
+              if (nn.deleted.has(k)) return `
+																																											<span class="conn-chip del" onclick="openModalDirect(${idx},${o})">${l}:del</span>`;
+              const w = nn.wHO[o][idx];
+              return `
+																																											<span class="conn-chip ${w>0?'pos':'neg'}" onclick="openModalDirect(${idx},${o})" title="${w.toFixed(4)}">${l}:${w>0?'+':''}${w.toFixed(2)}</span>`;
+            }).join('');
+            cont.innerHTML = `
+        
+																																											<div class="info-grid">
+																																												<div>
+																																													<h4>Hidden Node #${idx}</h4>
+																																													<div class="info-stats">Activation: 
+																																														<b>${act}</b> &nbsp; Bias: 
+																																														<b>${bias}</b>
+																																														<button class="btn-ghost btn-sm" style="margin-left:8px" onclick="editBias('hid',${idx})">Edit Bias</button>
+																																													</div>
+																																													<div style="font-size:11px;color:var(--text3);margin-top:8px;margin-bottom:4px">→ Output Connections</div>
+																																													<div class="conn-grid">${chips||'
+																																														<span style="color:var(--text3);font-size:11px">No output nodes yet</span>'}
+																																													</div>
+																																												</div>
+																																												<div style="flex-shrink:0">
+																																													<div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-align:center">Input Weights</div>
+																																													<canvas id="heatCanvas" width="80" height="80"></canvas>
+																																												</div>
+																																											</div>`;
+            setTimeout(() => drawHeat(idx), 5);
+          } else {
+            const o = idx,
+              l = nn.labels[o];
+            const sm = acts.sm ? (acts.sm[o] * 100).toFixed(2) : '—';
+            const bias = nn.bO[o].toFixed(4);
+            const chips = nn.wHO[o].map((w, h) => {
+              const k = `${h}-${o}`;
+              if (nn.deleted.has(k)) return `
+																																											<span class="conn-chip del" onclick="openModalDirect(${h},${o})">H${h}:del</span>`;
+              return `
+																																											<span class="conn-chip ${w>0?'pos':'neg'}" onclick="openModalDirect(${h},${o})" title="${w.toFixed(4)}">H${h}:${w>0?'+':''}${w.toFixed(2)}</span>`;
+            }).join('');
+            cont.innerHTML = `
+        
+																																											<h4>Output Node '${l}'</h4>
+																																											<div class="info-stats">Confidence: 
+																																												<b>${sm}%</b> &nbsp; Bias: 
+																																												<b>${bias}</b>
+																																												<button class="btn-ghost btn-sm" style="margin-left:8px" onclick="editBias('out',${o})">Edit Bias</button>
+																																											</div>
+																																											<div style="font-size:11px;color:var(--text3);margin-top:8px;margin-bottom:4px">← Hidden Connections</div>
+																																											<div class="conn-grid">${chips}</div>`;
+          }
+        }
+      }
+
+      function drawHeat(hidIdx) {
+        const c = document.getElementById('heatCanvas');
+        if (!c) return;
+        const ctx = c.getContext('2d');
+        const w = nn.wIH[hidIdx];
+        const mx = Math.max(...w.map(Math.abs), 1e-6);
+        const CELL = 5;
+        for (let i = 0; i < GS * GS; i++) {
+          const col = i % GS,
+            row = Math.floor(i / GS),
+            nw = w[i] / mx;
+          let r, g, b;
+          if (nw > 0) {
+            r = 20;
+            g = Math.floor(40 + nw * 200);
+            b = 60;
+          } else {
+            r = Math.floor(40 + (-nw) * 200);
+            g = 20;
+            b = 40;
+          }
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(col * CELL, row * CELL, CELL, CELL);
+        }
+      }
+
+      function editBias(type, idx) {
+        const cur = (type === 'hid' ? nn.bH[idx] : nn.bO[idx]).toFixed(4);
+        const v = prompt(`Edit bias for ${type==='hid'?'Hidden #'+idx:"Output '"+nn.labels[idx]+"'"}:`, cur);
+        if (v !== null && !isNaN(+v)) {
+          if (type === 'hid') nn.bH[idx] = +v;
+          else nn.bO[idx] = +v;
+          runPred();
+        }
+      }
+
+      function openModalDirect(h, o) {
+        openModal({
+          h,
+          o
+        });
+      }
+      // ═══════════════════════════════════════════════
+      // WEIGHT MODAL
+      // ═══════════════════════════════════════════════
+      function openModal(conn) {
+        modalConn = conn;
+        const {
+          h,
+          o
+        } = conn;
+        const l = nn.labels[o],
+          w = nn.wHO[o][h];
+        const del = nn.deleted.has(`${h}-${o}`);
+        document.getElementById('wModalInfo').textContent = `Hidden Node #${h} → Output '${l}'${del?' [DELETED]':''}`;
+        document.getElementById('wVal').value = w.toFixed(4);
+        document.getElementById('btnWDel').textContent = del ? 'Restore' : 'Delete';
+        document.getElementById('wModal').classList.add('open');
+      }
+
+      function closeModal() {
+        document.getElementById('wModal').classList.remove('open');
+      }
+      document.getElementById('btnWSave').onclick = () => {
+        if (!modalConn) return;
+        const {
+          h,
+          o
+        } = modalConn, v = +document.getElementById('wVal').value;
+        if (!isNaN(v)) {
+          nn.wHO[o][h] = v;
+          nn.deleted.delete(`${h}-${o}`);
+          runPred();
+          updateInfo();
+        }
+        closeModal();
+      };
+      document.getElementById('btnWRand').onclick = () => {
+        if (!modalConn) return;
+        const {
+          h,
+          o
+        } = modalConn;
+        nn.wHO[o][h] = (Math.random() - .5) * .5;
+        nn.deleted.delete(`${h}-${o}`);
+        document.getElementById('wVal').value = nn.wHO[o][h].toFixed(4);
+        runPred();
+      };
+      document.getElementById('btnWDel').onclick = () => {
+        if (!modalConn) return;
+        const {
+          h,
+          o
+        } = modalConn, k = `${h}-${o}`;
+        nn.deleted.has(k) ? nn.deleted.delete(k) : nn.deleted.add(k);
+        selConn = null;
+        runPred();
+        closeModal();
+      };
+      document.getElementById('btnWClose').onclick = closeModal;
+      document.getElementById('wModal').addEventListener('click', e => {
+        if (e.target === document.getElementById('wModal')) closeModal();
+      });
+      // ═══════════════════════════════════════════════
+      // ACTIVATION MINI-CHART
+      // ═══════════════════════════════════════════════
+      const aCvs = document.getElementById('activCanvas');
+      const aCtx = aCvs.getContext('2d');
+
+      function drawActiv() {
+        const W = aCvs.offsetWidth || 240,
+          H = 50;
+        aCvs.width = W;
+        aCvs.height = H;
+        aCtx.fillStyle = '#0a0a18';
+        aCtx.fillRect(0, 0, W, H);
+        if (!acts.hid) return;
+        const n = acts.hid.length,
+          bW = (W - 4) / n;
+        for (let i = 0; i < n; i++) {
+          const v = acts.hid[i],
+            x = 2 + i * bW,
+            bH = v * (H - 8);
+          const isSel = selNode && selNode.type === 'hid' && selNode.idx === i;
+          aCtx.fillStyle = isSel ? '#7c6aff' : `rgba(70,50,200,${.35+v*.65})`;
+          aCtx.fillRect(x, H - 4 - bH, bW - .8, bH);
+        }
+        aCtx.fillStyle = '#2a2a48';
+        aCtx.font = '9px JetBrains Mono';
+        aCtx.textAlign = 'left';
+        aCtx.fillText('hidden activations', 3, H - 1);
+      }
+      // ═══════════════════════════════════════════════
+      // TRAINING
+      // ═══════════════════════════════════════════════
+      function lr() {
+        return +document.getElementById('lrSlider').value;
+      }
+      document.getElementById('lrSlider').oninput = function() {
+        document.getElementById('lrVal').textContent = parseFloat(this.value).toFixed(3);
+      };
+      document.getElementById('btnAdd').onclick = () => {
+        const ch = document.getElementById('trainChar').value.trim();
+        if (!ch) {
+          return alert('Enter a character!');
+        }
+        const inp = [...grid];
+        const ex = trainingData.find(d => d.label === ch);
+        if (ex) ex.inputs.push(inp);
+        else trainingData.push({
+          label: ch,
+          inputs: [inp]
+        });
+        const loss = nn.train(inp, ch, lr());
+        pushLoss(loss);
+        updateUI();
+        runPred();
+        status(`Added '${ch}' — loss: ${loss.toFixed(4)}`);
+      };
+      document.getElementById('btnTrainOne').onclick = () => {
+        const ch = document.getElementById('trainChar').value.trim();
+        if (!ch) return;
+        const loss = nn.train([...grid], ch, lr());
+        pushLoss(loss);
+        runPred();
+        status(`Trained '${ch}' — loss: ${loss.toFixed(4)}`);
+      };
+      document.getElementById('btnTrainAll').onclick = async () => {
+        if (!trainingData.length) return alert('No training data!');
+        const ep = +document.getElementById('epochsIn').value || 200;
+        isTraining = true;
+        document.getElementById('btnTrainAll').disabled = true;
+        document.getElementById('btnAdd').disabled = true;
+        const flat = [];
+        for (const {
+            label,
+            inputs
+          } of trainingData)
+          for (const inp of inputs) flat.push({
+            inp,
+            label
+          });
+        let tot = 0,
+          ct = 0;
+        for (let e = 0; e < ep; e++) {
+          for (let i = flat.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [flat[i], flat[j]] = [flat[j], flat[i]];
+          }
+          let el = 0;
+          for (const {
+              inp,
+              label
+            } of flat) el += nn.train(inp, label, lr());
+          el /= flat.length;
+          pushLoss(el);
+          tot += el;
+          ct++;
+          if (e % 15 === 0 || e === ep - 1) {
+            document.getElementById('trainStatus').textContent = `Epoch ${e+1}/${ep} | Loss: ${el.toFixed(4)}`;
+            document.getElementById('lossDisp').textContent = `Loss: ${el.toFixed(4)}`;
+            runPred();
+            drawLossChart();
+            await sleep(0);
+          }
+        }
+        isTraining = false;
+        document.getElementById('btnTrainAll').disabled = false;
+        document.getElementById('btnAdd').disabled = false;
+        status(`Done! Avg loss: ${(tot/ct).toFixed(4)}`);
+        runPred();
+      };
+
+      function sleep(ms) {
+        return new Promise(r => setTimeout(r, ms));
+      }
+
+      function pushLoss(l) {
+        lossHist.push(l);
+        if (lossHist.length > 300) lossHist.shift();
+        document.getElementById('lossDisp').textContent = `Loss: ${l.toFixed(4)}`;
+        drawLossChart();
+      }
+      // ═══════════════════════════════════════════════
+      // LOSS CHART
+      // ═══════════════════════════════════════════════
+      function drawLossChart() {
+        const c = document.getElementById('lossCanvas');
+        const ctx = c.getContext('2d'),
+          W = c.width,
+          H = c.height;
+        ctx.fillStyle = '#0a0a18';
+        ctx.fillRect(0, 0, W, H);
+        if (lossHist.length < 2) return;
+        const mx = Math.max(...lossHist, .01);
+        // Gradient fill
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, 'rgba(124,106,255,.4)');
+        grad.addColorStop(1, 'rgba(124,106,255,0)');
+        ctx.beginPath();
+        for (let i = 0; i < lossHist.length; i++) {
+          const x = (i / (lossHist.length - 1)) * W;
+          const y = H - (lossHist[i] / mx) * (H - 4) - 2;
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        }
+        ctx.lineTo(W, H);
+        ctx.lineTo(0, H);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+        // Line
+        ctx.beginPath();
+        for (let i = 0; i < lossHist.length; i++) {
+          const x = (i / (lossHist.length - 1)) * W;
+          const y = H - (lossHist[i] / mx) * (H - 4) - 2;
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        }
+        ctx.strokeStyle = '#7c6aff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = '#2a2a48';
+        ctx.font = '9px JetBrains Mono';
+        ctx.textAlign = 'right';
+        ctx.fillText(mx.toFixed(3), W - 2, 10);
+        ctx.textAlign = 'left';
+        ctx.fillText(`${lossHist.length} steps`, 2, H - 2);
+      }
+      // ═══════════════════════════════════════════════
+      // UI
+      // ═══════════════════════════════════════════════
+      function status(msg) {
+        document.getElementById('globalStatus').textContent = msg;
+        setTimeout(() => {
+          if (document.getElementById('globalStatus').textContent === msg) document.getElementById('globalStatus').textContent = '';
+        }, 4000);
+      }
+
+      function showConfirm(msg, onYes) {
+        const ov = document.createElement('div');
+        ov.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center';
+        ov.innerHTML = `
+																																																	<div style="background:#14142b;border:1px solid #4a4a8a;border-radius:10px;padding:22px 24px;max-width:310px;font-family:JetBrains Mono,monospace;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+																																																		<p style="color:#c8c8e8;font-size:12px;margin-bottom:18px;line-height:1.7">${msg}</p>
+																																																		<div style="display:flex;gap:8px">
+																																																			<button id="_cfmY" style="flex:1;background:#c0394a;color:#fff;border:none;border-radius:5px;padding:8px 12px;cursor:pointer;font-family:inherit;font-size:12px">Confirm</button>
+																																																			<button id="_cfmN" style="flex:1;background:#1e1e40;color:#b0b0d0;border:1px solid #3a3a6a;border-radius:5px;padding:8px 12px;cursor:pointer;font-family:inherit;font-size:12px">Cancel</button>
+																																																		</div>
+																																																	</div>`;
+        document.body.appendChild(ov);
+        const rm = () => document.body.removeChild(ov);
+        ov.querySelector('#_cfmY').onclick = () => {
+          rm();
+          onYes();
+        };
+        ov.querySelector('#_cfmN').onclick = rm;
+        ov.onclick = e => {
+          if (e.target === ov) rm();
+        };
+      }
+
+      function updateUI() {
+        document.getElementById('hdrOut').textContent = nn.outSz;
+        document.getElementById('outputCount') && (document.getElementById('outputCount').textContent = nn.outSz);
+        const list = document.getElementById('tdList');
+        const total = trainingData.reduce((s, d) => s + d.inputs.length, 0);
+        document.getElementById('tdCount').textContent = `${total} example${total!==1?'s':''}`;
+        if (!trainingData.length) {
+          list.innerHTML = ' < div class = "no-pred"
+          style = "padding:6px 0;font-size:11px" > No examples yet. < /div>';
+        } else {
+          list.innerHTML = trainingData.map((d, i) => `
+      
+																																																	<div class="td-item">
+																																																		<div class="td-glyph">${d.label}</div>
+																																																		<div class="td-count">${d.inputs.length} sample${d.inputs.length!==1?'s':''}</div>
+																																																		<button class="btn-ghost btn-sm" onclick="previewTD(${i})" title="Preview last sample">👁</button>
+																																																		<button class="btn-danger btn-sm" onclick="deleteTD(${i})">✕</button>
+																																																	</div>`).join('');
+        }
+        const ch = document.getElementById('trainChar').value.trim();
+        document.getElementById('btnTrainOne').disabled = !ch;
+        document.getElementById('btnTrainAll').disabled = !trainingData.length;
+      }
+
+      function previewTD(i) {
+        const last = trainingData[i].inputs[trainingData[i].inputs.length - 1];
+        grid = [...last];
+        drawGrid();
+        schedulePred();
+      }
+
+      function deleteTD(i) {
+        const label = trainingData[i].label;
+        trainingData.splice(i, 1);
+        if (!trainingData.some(d => d.label === label)) {
+          const oIdx = nn.labels.indexOf(label);
+          if (oIdx >= 0) {
+            nn.labels.splice(oIdx, 1);
+            nn.wHO.splice(oIdx, 1);
+            nn.bO.splice(oIdx, 1);
+            nn.outSz--;
+            const nd = new Set();
+            for (const k of nn.deleted) {
+              const [h, o] = k.split('-').map(Number);
+              if (o === oIdx) continue;
+              nd.add(o > oIdx ? `${h}-${o-1}` : k);
+            }
+            nn.deleted = nd;
+            if (selNode && selNode.type === 'out' && selNode.idx >= nn.outSz) selNode = null;
+            if (selConn && selConn.o >= nn.outSz) selConn = null;
+          }
+        }
+        updateUI();
+        updateInfo();
+        runPred();
+      }
+      // ═══════════════════════════════════════════════
+      // GRID CONTROLS
+      // ═══════════════════════════════════════════════
+      document.getElementById('btnClear').onclick = () => {
+        grid.fill(0);
+        drawGrid();
+        schedulePred();
+      };
+      document.getElementById('btnErase').onclick = function() {
+        erasing = !erasing;
+        this.textContent = erasing ? '🗑 Erase' : '✏ Draw';
+        this.style.background = erasing ? '#3a1a25' : '';
+      };
+      document.getElementById('btnInvert').onclick = () => {
+        for (let i = 0; i < grid.length; i++) grid[i] = grid[i] ? 0 : 1;
+        drawGrid();
+        schedulePred();
+      };
+      document.getElementById('trainChar').oninput = updateUI;
+      // ═══════════════════════════════════════════════
+      // NET CONTROLS
+      // ═══════════════════════════════════════════════
+      document.getElementById('btnRandAll').onclick = () => {
+        showConfirm('Randomize ALL weights? < br > Training progress will be lost.
+          ',()=>{
+          nn.randWeights('all'); runPred(); status('All weights randomized');
+        });
+      };
+      document.getElementById('btnRandIH').onclick = () => {
+        showConfirm('Randomize Input → Hidden weights?', () => {
+          nn.randWeights('IH');
+          runPred();
+          status('Input→Hidden randomized');
+        });
+      };
+      document.getElementById('btnRandHO').onclick = () => {
+        showConfirm('Randomize Hidden → Output weights?', () => {
+          nn.randWeights('HO');
+          runPred();
+          status('Hidden→Output randomized');
+        });
+      };
+      document.getElementById('btnReset').onclick = () => {
+        showConfirm('Reset entire network and clear all training data? < br > This cannot be undone.
+          ',()=>{
+          nn = new NN(256, 24); trainingData = []; lossHist = []; acts = {
+            hid: null,
+            out: null,
+            sm: null
+          }; selNode = null; selConn = null; document.getElementById('infoPanel').classList.remove('open'); grid.fill(0); drawGrid(); updateUI(); updateInfo(); runPred(); drawLossChart(); status('Network reset!');
+        });
+      };
+      document.getElementById('chkAll').onchange = drawNet;
+      document.getElementById('chkHeat').onchange = drawNet;
+      document.getElementById('btnClearData').onclick = () => {
+        showConfirm('Clear all training data? < br > Network weights are kept.
+          ',()=>{
+          trainingData = []; updateUI(); status('Training data cleared');
+        });
+      };
+      // ═══════════════════════════════════════════════
+      // SAVE / LOAD
+      // ═══════════════════════════════════════════════
+      document.getElementById('btnSave').onclick = () => {
+        const data = {
+          v: 1,
+          created: new Date().toISOString(),
+          network: nn.toJSON(),
+          trainingData,
+          lossHist: lossHist.slice(-100)
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: 'application/json'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nn-session-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        status('Session saved!');
+      };
+      document.getElementById('btnLoad').onclick = () => document.getElementById('fileIn').click();
+      document.getElementById('fileIn').onchange = e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          try {
+            const d = JSON.parse(ev.target.result);
+            if (d.v !== 1) throw new Error('Unknown version');
+            nn = NN.fromJSON(d.network);
+            trainingData = d.trainingData || [];
+            lossHist = d.lossHist || [];
+            selNode = null;
+            selConn = null;
+            acts = {
+              hid: null,
+              out: null,
+              sm: null
+            };
+            grid.fill(0);
+            drawGrid();
+            updateUI();
+            runPred();
+            drawLossChart();
+            status(`Loaded! ${nn.outSz} output nodes, ${trainingData.length} classes`);
+          } catch (err) {
+            alert('Load failed: ' + err.message);
+          }
+        };
+        reader.readAsText(f);
+        e.target.value = '';
+      };
+      // ═══════════════════════════════════════════════
+      // RESIZE
+      // ═══════════════════════════════════════════════
+      window.addEventListener('resize', () => {
+        resizeNet();
+        drawNet();
+        drawActiv();
+      });
+      // ═══════════════════════════════════════════════
+      // INIT
+      // ═══════════════════════════════════════════════
+      drawGrid();
+      resizeNet();
+      drawNet();
+      drawActiv();
+      drawLossChart();
+      updateUI();
+      // Demo hint
+      status('← Draw a character and click Add to begin training');
+    </script>
+  </body>
 </html>
