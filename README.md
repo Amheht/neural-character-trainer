@@ -3,6 +3,7 @@
 An interactive, browser-based neural network that learns to recognize hand-drawn characters. Draw on a 16×16 grid, train the network by labeling your drawings, and watch it learn to predict what you draw in real time. Every weight, connection, and activation is visible and editable.
 
 No installation required. Open `index.html` in any modern browser.
+Github Pages Link: **https://amheht.github.io/neural-character-trainer/**
 
 ---
 
